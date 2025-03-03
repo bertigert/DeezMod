@@ -8,7 +8,7 @@ module.exports = {
     func: () => {
         // ======= Settings START =======
         
-        LOG_ALL_FEATURES_DEBUG = true; // useful to see all features (gets logged in the (dev tools) console, use https://github.com/bababoi-2/DeezMod/blob/main/plugins/enable_dev_mode.js to view)
+        LOG_ALL_FEATURES_DEBUG = true; // useful to see all features (gets logged in the (dev tools) console, use https://github.com/bertigert/DeezMod/blob/main/plugins/enable_dev_mode.js to view)
 
         CUSTOM_FEATURES = {
             gapless_playback: true,

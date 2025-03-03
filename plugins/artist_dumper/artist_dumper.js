@@ -1,12 +1,12 @@
 module.exports = {
     name: "Artist Dumper",
-    description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bababoi-2/Deezer-Artist-Dumper",
+    description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bertigert/Deezer-Artist-Dumper",
     version: "1.4.8",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
-        // port of https://github.com/bababoi-2/Deezer-Artist-Dumper
+        // port of https://github.com/bertigert/Deezer-Artist-Dumper
         function set_css() {
             const css = document.createElement("style");
             css.type = "text/css";

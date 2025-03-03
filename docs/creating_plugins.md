@@ -51,7 +51,7 @@ My rule of thumb is: If you can get away with the scope being "own", then you sh
     - `context` string - The context in which the script got executed in, useful for when you need to execute the script in multiple contexts.
 
 ## Developing plugins
-To develop your own plugin, take a look at [the setup](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/setup.md)
+To develop your own plugin, take a look at [the setup](https://github.com/bertigert/deezer-desktop-app-injection/blob/main/docs/setup.md)
 You have complete access to the deezer application so you can do pretty much anything, however there is no streamlined way of doing anything. 
 Take a look at the source code and think of ways to do what you want. You can also just ask me.
 If you can't find a way to do it with plugins then you can always just directly edit the code and repackage the asar file or open an issue/pr to request it to be added to the main release.

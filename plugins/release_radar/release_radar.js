@@ -1,12 +1,12 @@
 module.exports = {
     name: "Release Radar",
-    description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
+    description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
     version: "1.2.7",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
-        // Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application
+        // Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application
         // TODO:
         // handle ratelimits in some way
         // add to x playlist if from y artist
