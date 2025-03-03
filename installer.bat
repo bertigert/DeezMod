@@ -93,7 +93,7 @@ if not exist "%install_path%\%ran_foldername%" (
 
 echo Downloading source files
 echo.
-curl -s -L -o "%install_path%\patched_source.zip" https://github.com/bertigert/deezer-desktop-app-injection/releases/latest/download/patched_source.zip
+curl -s -L -o "%install_path%\patched_source.zip" https://github.com/bertigert/DeezMod/releases/latest/download/patched_source.zip
 if not exist "%install_path%\patched_source.zip" (
     echo Failed to download sources
 	goto :end
@@ -115,7 +115,7 @@ echo.
 echo Downloading prepacked app.asar
 echo.
 
-curl -s -L -o "%install_path%\app_patched.asar.zip" https://github.com/bertigert/deezer-desktop-app-injection/releases/latest/download/app.asar.zip
+curl -s -L -o "%install_path%\app_patched.asar.zip" https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip
 if not exist "%install_path%\app_patched.asar.zip" (
     echo Failed to download app.asar zip
 )
