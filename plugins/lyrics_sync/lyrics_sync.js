@@ -9,6 +9,9 @@ module.exports = {
         // PLEASE NOTE:
         // this completely fucks up the dzplayer.haslyrics function, so it will always return true, even if there are no lyrics, similar for the dzplayer.getcurrentsong function
 
+        // TODO:
+        // add support for word by word lyrics from musixmatch
+
         "use strict";
         const node_fetch = require("node-fetch");
 
