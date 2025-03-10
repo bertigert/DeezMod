@@ -1819,7 +1819,7 @@ module.exports = {
                 set_cache(cache);
             }
 
-            console.log(new_releases);
+            log(new_releases);
 
 
             async function create_ui(parent) {
