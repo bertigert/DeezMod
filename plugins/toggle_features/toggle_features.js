@@ -23,54 +23,62 @@ module.exports = {
         function log(...args) {
             console.log("[Toggle Features]", ...args);
         }
+        function error(...args) {
+            console.error("[Toggle Features]", ...args);
+        }
+        function debug(...args) {
+            console.debug("[Toggle Features]", ...args);
+        }
         
         const original_fetch = window.fetch;
 
+        log("Hooking fetch");
         window.fetch = async function (...args) {
-            const url = new URL(args[0]);
+            try {
+                const url = new URL(args[0]);
             
-            // filter out useless requests
-            if (url.pathname === "/ajax/gw-light.php" && 
-                url.searchParams.get("method") === "deezer.getUserData" &&
-                url.searchParams.get("api_token") === "" &&
-                url.searchParams.has("cid")
-            ) {    
-                // try to check if the request was made by the deezer app itself and not some plugin (rudimentary), so that we can unhook later on
-                const caller_file = (new Error()).stack.split("\n", 3)[2]?.split("(", 2)[1]?.split(")", 1)[0].trim();
-                if (caller_file.includes("app-web")) {
-                    log('Catched original user data fetch call');
-                    
-
-                    const response = await original_fetch.apply(this, args);
-                    const resp_json = await response.json();
-    
-                    if (resp_json.results) {
-                        const features = resp_json.results.__DZR_GATEKEEPS__;
-
-                        if (LOG_ALL_FEATURES_DEBUG) {
-                            log('All Features:', features);
-                        }
-
-                        for (let feature of Object.entries(CUSTOM_FEATURES)) {
-                            features[feature[0]] = feature[1];
-                            log(feature[1] ? 'Enabled' : 'Disabled', feature[0]);
-                        }
-                        
-                    }
-    
-                    // since this request is only made once, we can unhook now
-                    log("Unhooking fetch");
-                    window.fetch = original_fetch;
-
-                    return new Response(JSON.stringify(resp_json), {
-                        status: response.status,
-                        statusText: response.statusText,
-                        headers: response.headers,
-                    });
+                if (url.pathname !== "/ajax/gw-light.php" || 
+                    url.searchParams.get("method") !== "deezer.getUserData" ||
+                    url.searchParams.get("api_token") !== "" ||
+                    !url.searchParams.has("cid") ||
+                    // check if the 2nd trace (after filtering out traces which were made using window.fetch (deezers script dont do that, so they must be user made and we ignore that) is in the web-app script (thats the way normal deezer scripts fetch data)
+                    !(new Error()).stack.split("\n").filter(l=>!l.includes("window.fetch"))[1]?.includes("app-web")
+                ) {
+                    return original_fetch.apply(window, args);
                 }
-            }
 
-            return original_fetch.apply(this, args);
-        };
+                debug('Catched original user data fetch call');
+
+                const response = await original_fetch.apply(window, args);
+                const resp_json = await response.json();
+
+                if (resp_json.results) {
+                    const features = resp_json.results.__DZR_GATEKEEPS__;
+
+                    if (LOG_ALL_FEATURES_DEBUG) {
+                        log('All Features:', features);
+                    }
+
+                    for (let feature of Object.entries(CUSTOM_FEATURES)) {
+                        features[feature[0]] = feature[1];
+                        log(feature[1] ? 'Enabled' : 'Disabled', feature[0]);
+                    }
+                    
+                }
+
+                // since this request is only made once, we can unhook now
+                log("Unhooking fetch");
+                window.fetch = original_fetch;
+
+                return new Response(JSON.stringify(resp_json), {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: response.headers,
+                });
+            } catch (e) {
+                error("Error in fetch hook:", e);
+                return original_fetch.apply(window, args);
+            }
+        }
     }
 }
