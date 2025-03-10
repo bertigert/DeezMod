@@ -124,7 +124,7 @@ module.exports = {
                     })
                     .catch(e => {
                         debug("[ERROR] Failed to authenticate to RPC");
-                        delay = Math.min(delay * 1.5, 60000); // it will retry every 1 minute at worst
+                        delay = Math.min(delay * 1.5, 120000); // it will retry every 2 minutes at worst
                         setTimeout(retry, delay);
                     });
             };
