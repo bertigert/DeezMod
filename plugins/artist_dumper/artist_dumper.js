@@ -597,7 +597,7 @@ module.exports = {
 
                 for (let applies_to of Object.entries(regex.applies_to)) {
                     if (applies_to[1]) {
-                        artdump_log.console(`Regex "${regex_exp}" is valid (${["blacklist", "whitelist"][regex.type]}) (${applies_to[0]})`);
+                        Artdump_log.console(`Regex "${regex_exp}" is valid (${["blacklist", "whitelist"][regex.type]}) (${applies_to[0]})`);
                         regexes[["blacklist", "whitelist"][regex.type]][applies_to[0]].push(regex_exp);
                     }
                 }
