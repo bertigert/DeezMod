@@ -7,13 +7,11 @@ module.exports = {
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
     func: () => {
         // PLEASE NOTE:
-        // this completely fucks up the dzplayer.haslyrics function, so it will always return true, even if there are no lyrics, similar for the dzplayer.getcurrentsong function
-
-        // TODO:
-        // add support for word by word lyrics from musixmatch
+        // this completely fucks up the dzplayer.getCurrentSong function, so that it always returns a lyrics id (if there are no lyrics, then -1)
 
         "use strict";
         const node_fetch = require("node-fetch");
+        const https_agent = require("https").Agent({ keepAlive: true, maxSockets: 10 });
 
         class Logger {
             constructor() {
@@ -68,18 +66,60 @@ module.exports = {
             return this.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase(); });
         }
 
+        class Deezer {
+            constructor() {
+                this.auth_token = null;
+            }
+
+            async get_auth_token() {
+                const r = await fetch("https://auth.deezer.com/login/renew?jo=p&rto=c&i=c", {
+                    "method": "POST",
+                    "credentials": "include"
+                });
+                const resp = await r.json();
+                this.auth_token = resp.jwt
+                return resp.jwt;
+            }
+
+            async get_lyrics(song_id) {
+                const r = await fetch("https://pipe.deezer.com/api", {
+                    "headers": {
+                        "authorization": "Bearer " + this.auth_token,
+                        "Content-Type": "application/json"
+                    },
+                    "body": JSON.stringify({
+                        "operationName": "GetLyrics",
+                        "variables": {
+                            "trackId": song_id.toString()
+                        },
+                        "query": "query GetLyrics($trackId: String!) {\n  track(trackId: $trackId) {\n    lyrics {\n      text\n      ...SynchronizedWordByWordLines\n      ...SynchronizedLines\n    }\n  }\n}\n\nfragment SynchronizedWordByWordLines on Lyrics {\n  synchronizedWordByWordLines {\n    start\n    end\n    words {\n      start\n      end\n      word\n    }\n  }\n}\n\nfragment SynchronizedLines on Lyrics {\n  synchronizedLines {\n    lrcTimestamp\n    line\n    milliseconds\n    duration\n  }\n}\n"
+                    }),
+                    "method": "POST",
+                });
+                if (r.ok) {
+                    const data = r.json();
+                    if (data.errors > 0 && data.errors[0].type === "JwtTokenExpiredError") {
+                        this.get_auth_token();
+                        return this.get_lyrics(song_id);
+                    }
+                    return data;
+                }
+            }
+        }
+
         class Lyrics_DB {
             // https://evanhahn.com/javascript-compression-streams-api-with-strings/ and https://stackoverflow.com/a/59469189
             static INDEXES = Object.freeze({
                 ID: "i",
-                ADDED_TIMESTAMP: "t",
+                ADDED_TIMESTAMP: "a",
                 COMPRESSED_LYRICS: "l",
-                SYNCED: "s"
+                TYPE: "t"
             });
             static CACHE_EXPIRATION_TIMES = Object.freeze({
                 NO_LYRICS: 24*60*60*1000, // 1 day
                 UNSYNCED_LYRICS: 30*24*60*60*1000, // 30 days
-                SYNCED_LYRICS: 90*24*60*60*1000 // 90 days
+                SYNCED_LYRICS: 90*24*60*60*1000, // 90 days
+                WORD_BY_WORD_LYRICS: 90*24*60*60*1000 // 90 days
             });
             static CACHE_TIMESTAMPS = Object.freeze({
                 CUSTOM_LYRICS: Number.MAX_SAFE_INTEGER,  // we pass Number.MAX_SAFE_INTEGER because user provided lyrics should not be removed by the cache
@@ -87,13 +127,16 @@ module.exports = {
             });
 
 
-            static async compress_text(str) {
+            static async compress_text(str, log=true) {
                 const cs = new CompressionStream('deflate-raw');
                 const writer = cs.writable.getWriter();
-                writer.write(new TextEncoder().encode(str));
+                const encoded_str = new TextEncoder().encode(str)
+                writer.write(encoded_str);
                 writer.close();
                 const compressed_array_buffer = await new Response(cs.readable).arrayBuffer();
-                return new Uint8Array(compressed_array_buffer);
+                const compressed_str =  new Uint8Array(compressed_array_buffer);
+                if (log) logger.console.debug(`Compression saved ${Math.round( (1-compressed_str.byteLength/encoded_str.byteLength)*100 )}% space (${encoded_str.byteLength} -> ${compressed_str.byteLength} = ${compressed_str.byteLength-encoded_str.byteLength} bytes)`);
+                return compressed_str;
             }
             static async decompress_text(compressed_bytes) {
                 const ds = new DecompressionStream('deflate-raw');
@@ -128,13 +171,13 @@ module.exports = {
                 });
             }
 
-            async save_to_indexed_db(id, added_timestamp, compressed_lyrics, synced, opened_db=null) {
-                const [i, t, l, s] = [id, added_timestamp, compressed_lyrics, synced];
+            async save_to_indexed_db(id, added_timestamp, compressed_lyrics, type, opened_db=null) {
+                const [i, a, l, t] = [id, added_timestamp, compressed_lyrics, type];
                 const data = {
                     i,
-                    t,
+                    a,
                     l,
-                    s,
+                    t,
                 };
 
 
@@ -182,6 +225,18 @@ module.exports = {
                 return data;
             }
 
+            async delete_from_indexed_db(id) {
+                const db = await this.open_indexed_db(this.db_name, this.store_name);
+                const store = db.transaction(this.store_name, 'readwrite').objectStore(this.store_name);
+                const delete_request = store.delete(id);
+                await new Promise((resolve, reject) => {
+                    delete_request.onsuccess = resolve;
+                    delete_request.onerror = reject;
+                });
+                logger.console.debug(`Entry with ID ${id} deleted from cache db`);
+
+            }
+
             async delete_oldest_entry(store) {
                 const index = store.index('added_timestamp');
                 const request = index.openCursor(null, 'next'); // Iterate through entries based on timestamp (ascending)
@@ -206,13 +261,13 @@ module.exports = {
                     });
                     logger.console.debug(`Oldest entry with ID ${oldest_entry_id} deleted from cache db`);
                 } else {
-                    // logger.console.debug("Oldest entry not found")
+                    logger.console.debug("Oldest entry not found")
                 }
             }
 
             async update_entry(id) { // only updates the timestamp, not the compressed data
                 const entry = await this.get_from_indexed_db(id);
-                return this.save_to_indexed_db(id, Date.now(), entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS], entry[Lyrics_DB.INDEXES.SYNCED]);
+                return this.save_to_indexed_db(id, Date.now(), entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS], entry[Lyrics_DB.INDEXES.TYPE]);
             }
 
             async _fill_with_dummy_data(num_entries=10000) {
@@ -228,7 +283,6 @@ module.exports = {
 
                 logger.console.log(`Filled the IndexedDB with ${num_entries} entries.`);
             }
-
             async get_full_size() {
                 const db = await this.open_indexed_db(this.db_name, this.store_name);
 
@@ -248,11 +302,12 @@ module.exports = {
                     const id_size = new TextEncoder().encode(entry[Lyrics_DB.INDEXES.ID]).byteLength;
                     const compressed_lyrics_size = entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]?.byteLength || 8; // null is 4-8 bytes
                     const timestamp_size = 8; // timestamp/numbers are 8 bytes
+                    const bool_size = 1; // boolean is 1 byte (idk if this is correct, but it should be around that)
                     if (entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]) {
-                        total_size_ignoring_null += id_size + compressed_lyrics_size + timestamp_size;
+                        total_size_ignoring_null += id_size + compressed_lyrics_size + timestamp_size + bool_size;
                         entry_count_ignoring_null++;
                     }
-                    total_size += id_size + compressed_lyrics_size + timestamp_size;
+                    total_size += id_size + compressed_lyrics_size + timestamp_size + bool_size;
                 }
 
                 // Compute average size
@@ -269,6 +324,26 @@ module.exports = {
                     entry_count_ignoring_null,
                 };
             }
+
+            static is_cache_expired(timestamp, type) {
+                if (
+                    timestamp === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ||
+                    timestamp === Lyrics_DB.CACHE_TIMESTAMPS.INSTRUMENTAL ||
+                    type === musixmatch.TYPES.INSTRUMENTAL
+                ) {
+                    return false;
+                }
+                switch (type) {
+                    case musixmatch.TYPES.WORD_BY_WORD:
+                        return timestamp < Date.now() - Lyrics_DB.CACHE_EXPIRATION_TIMES.WORD_BY_WORD_LYRICS;
+                    case musixmatch.TYPES.SYNCED:
+                        return timestamp < Date.now() - Lyrics_DB.CACHE_EXPIRATION_TIMES.SYNCED_LYRICS;
+                    case musixmatch.TYPES.UNSYNCED:
+                        return timestamp < Date.now() - Lyrics_DB.CACHE_EXPIRATION_TIMES.UNSYNCED_LYRICS;
+                    default:
+                        return timestamp < Date.now() - Lyrics_DB.CACHE_EXPIRATION_TIMES.NO_LYRICS;
+                }
+            }
         }
 
 
@@ -282,9 +357,19 @@ module.exports = {
             });
             URLS = Object.freeze({
                 TOKEN: "https://apic.musixmatch.com/ws/1.1/token.get?app_id=android-player-v1.0&guid={0}&format=json",
+                GET_TRACK: "https://apic.musixmatch.com/ws/1.1/track.get?track_isrc={0}&usertoken={1}&app_id=android-player-v1.0&format=json",
                 UNSYNCED_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.lyrics.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json",
                 SYNCED_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.subtitle.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json&subtitle_format={2}",
+                WORD_BY_WORD_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.richsync.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json"
             });
+            TYPES = Object.freeze({ // sorted by hierarchy
+                NONE: 0,
+                INSTRUMENTAL: 1,
+                UNSYNCED: 2,
+                SYNCED: 3,
+                WORD_BY_WORD: 4,
+            });
+
 
             constructor() {
                 this.token = null;
@@ -296,18 +381,20 @@ module.exports = {
 
             async make_request(url) {
                 try {
+                    logger.console.debug("Making request to musixmatch:", url);
+                    const start = Date.now();
                     const response = await node_fetch(url, {
                         headers: {
                             cookie: "AWSELB=unknown"
-                        }
+                        },
+                        agent: https_agent
                     });
-
                     if (!response.ok) {
                         return [this.RESPONSES.UNKNOWN, null];
                     }
 
                     const data = await response.json();
-                    // logger.console.debug("Got data from musixmatch:", data);
+                    logger.console.debug("Got data from musixmatch:", data, "time took:", Date.now()-start, "ms");
                     const header = data.message?.header;
 
                     if (header?.status_code === 401) {
@@ -388,119 +475,84 @@ module.exports = {
                 return false;
             }
 
-            async get_musixmatch_lyrics(track_isrc, format="lrc", cached_track_data=null) {
+            async get_track(track_isrc) {
+                if (!track_isrc) {
+                    logger.console.debug("No track isrc provided");
+                    return [this.RESPONSES.NOT_FOUND, null];
+                }
+                const [status, data] = await this.make_request(Musixmatch._parse_url(this.URLS.GET_TRACK, track_isrc, this.token));
+                if (status === this.RESPONSES.SUCCESS) {
+                    logger.console.debug("Got track data:", data);
+                    return [status, data];
+                }
+                return [status, null];
+            }
+            async which_lyric_type(track_isrc) {
+                const [status, data] = await this.get_track(track_isrc);
+                if (status === this.RESPONSES.SUCCESS) {
+                    if (data.message.body.track.instrumental === 1) {
+                        return this.TYPES.INSTRUMENTAL;
+                    }
+                    if (data.message.body.track.has_richsync && config.config.musixmatch.types.word_by_word) {
+                        return this.TYPES.WORD_BY_WORD;
+                    }
+                    if (data.message.body.track.has_subtitles && config.config.musixmatch.types.synced) {
+                        return this.TYPES.SYNCED;
+                    }
+                    if (data.message.body.track.has_lyrics && config.config.musixmatch.types.unsynced) {
+                        return this.TYPES.UNSYNCED;
+                    }
+                }
+                return this.TYPES.NONE;
+            }
+
+            async get_musixmatch_lyrics(track_isrc, type, format="lrc") {
                 if (!track_isrc) {
                     logger.console.debug("No track isrc provided");
                     return [this.RESPONSES.NOT_FOUND, null];
                 }
 
-                let only_update_timestamp_if_no_lyrics = false;
-                cached_track_data = cached_track_data || await lyrics_db.get_from_indexed_db(track_isrc)
-                if (cached_track_data) {
-                    if (cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]) {
-                        if (
-                            cached_track_data[Lyrics_DB.INDEXES.SYNCED] && cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] > Date.now()-Lyrics_DB.CACHE_EXPIRATION_TIMES.SYNCED_LYRICS ||
-                            !cached_track_data[Lyrics_DB.INDEXES.SYNCED] && cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] > Date.now()-Lyrics_DB.CACHE_EXPIRATION_TIMES.UNSYNCED_LYRICS
-                        ) {
-                            logger.console.debug("Data in cache, had lyrics, cache not expired");
-                            return [this.RESPONSES.SUCCESS, await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]), cached_track_data[Lyrics_DB.INDEXES.SYNCED]];
-                        } else {
-                            logger.console.debug("Data in cache, had lyrics, cache expired");
-                            only_update_timestamp_if_no_lyrics = true; // this means that lyrics existed, but were removed from musixmatch. i think we should keep them in that case
-                        }
-                    }
-                    else {
-                        if (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] > Date.now()-Lyrics_DB.CACHE_EXPIRATION_TIMES.NO_LYRICS) {
-                            logger.console.debug("Data in cache, no lyrics, cache not expired");
-                            return [this.RESPONSES.NOT_FOUND, null];
-                        } else {
-                            logger.console.debug("Data in cache, no lyrics, cache expired");
-                            only_update_timestamp_if_no_lyrics = true;
-                        }
-                    }
-                }
-                else {
-                    logger.console.debug("No data in cache");
-                    if (!config.config.musixmatch.enabled) {
-                        logger.console.debug("Getting Lyrics from musixmatch is disabled");
-                        return [this.RESPONSES.NOT_FOUND, null];
-                    }
+                if (!config.config.musixmatch.enabled) {
+                    logger.console.debug("Getting Lyrics from musixmatch is disabled");
+                    return [this.RESPONSES.NOT_FOUND, null];
                 }
 
-                const do_request = async (url, type="synced") => {
-                    logger.console.debug(`Getting ${type} lyrics for track ${track_isrc}`);
-                    const [status, data] = await this.make_request(url);
+                const do_request = async (url_template) => {
+                    logger.console.debug(`Getting data for track ${track_isrc}`);
+                    const [status, data] = await this.make_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format));
                     if (status === this.RESPONSES.INVALID_TOKEN) {
                         const has_new_token = await this.renew_token();
                         if (has_new_token) {
-                            return await do_request(Musixmatch._parse_url(this.URLS[type === "synced" ? "SYNCED_LYRICS" : "UNSYNCED_LYRICS"], track_isrc, this.token, format), type);
+                            return await do_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format));
                         }
-                        else {
-                            Hooks.toggle_hooks(false, Hooks.HOOK_INDEXES.ALL); // if we can't get a new token, we just stop this script this session basically
-                        }
-                    }
-                    else if (status === this.RESPONSES.NOT_FOUND || data?.lyrics?.lyrics_body === "") {
-                        logger.console.log(`${type.toTitleCase()} lyrics for track ${track_isrc} not found`);
-                        if (data.message.header.instrumental === 1) {
-                            logger.console.debug("Track is instrumental");
-                            await lyrics_db.save_to_indexed_db(track_isrc, Lyrics_DB.CACHE_TIMESTAMPS.INSTRUMENTAL, null, false);
-                        }
-                        else if (type === "synced") {
-                            logger.console.debug("Trying to get unsynced lyrics instead");
-                            return await do_request(Musixmatch._parse_url(this.URLS.UNSYNCED_LYRICS, track_isrc, this.token, format), "unsynced");
-                        }
-                        else if (only_update_timestamp_if_no_lyrics) {
-                            logger.console.debug("Updating timestamp of track", track_isrc);
-                            await lyrics_db.update_entry(track_isrc);
-                        }
-                        else {
-                            logger.console.debug("Saving empty data to cache db");
-                            await lyrics_db.save_to_indexed_db(track_isrc, Date.now(), null, false);
-                        }
+                        logger.console.error("Failed to get new token, stopping script");
+                        Hooks.toggle_hooks(false, Hooks.HOOK_INDEXES.ALL); // if we can't get a new token, we just stop this script this session basically
                         return [status, null];
                     }
-                    else if (status === this.RESPONSES.SUCCESS) {
-                        logger.console.log(`Got ${type} lyrics for track ${track_isrc}`);
-                        const lyrics = type === "synced" ? data.message.body.subtitle.subtitle_body : data.message.body.lyrics.lyrics_body;
-                        const lyrics_size = new TextEncoder().encode(lyrics).byteLength;
-                        const compressed_lyrics = await Lyrics_DB.compress_text(lyrics)
-                        logger.console.debug(`Compression saved ${Math.round( (1-compressed_lyrics.byteLength/lyrics_size)*100 )}% space (${lyrics_size} -> ${compressed_lyrics.byteLength} = ${compressed_lyrics.byteLength-lyrics_size} bytes)`);
-                        await lyrics_db.save_to_indexed_db(track_isrc, Date.now(), compressed_lyrics, type === "synced");
-                        return [status, lyrics, type === "synced"];
+                    if (status === this.RESPONSES.NOT_FOUND) {
+                        logger.console.debug(`Lyrics for track ${track_isrc} not found`);
+                        return [status, null];
+                    }
+                    if (status === this.RESPONSES.SUCCESS) {
+                        logger.console.debug(`Got lyrics for track ${track_isrc}`);
+                        return [status, data];
                     }
                     else {
                         logger.console.log(`Failed to get ${type} lyrics for track ${track_isrc}, status: ${status}`);
                         return [status, null];
                     }
                 }
-                const r = await do_request(Musixmatch._parse_url(this.URLS.SYNCED_LYRICS, track_isrc, this.token, format), "synced");
-                // logger.console.debug("Musixmatch lyrics response:", r);
+                const r = await do_request(type === this.TYPES.WORD_BY_WORD ? this.URLS.WORD_BY_WORD_LYRICS : type === this.TYPES.SYNCED ? this.URLS.SYNCED_LYRICS : this.URLS.UNSYNCED_LYRICS);
+                logger.console.debug("Musixmatch lyrics response:", r);
                 return r;
             }
         }
 
 
         class Lyrics_Parser {
-            static musixmatch_mxm(data) {
-                const parsed_lyrics = [];
-                for (let i = 0; i < data - 1; i++) {
-                    let curr_line = data[i];
-                    let next_line = data[i + 1];
-                    parsed_lyrics.push({
-                        lrcTimestamp: `[${String(curr_line.time.minutes).padStart(2, '0')}:${String(curr_line.time.seconds).padStart(2, '0')}.${String(curr_line.time.hundredths).padStart(2, '0')}]`,
-                        line: curr_line.text.replace("\\", "").trim(),
-                        lineTranslated: "",
-                        milliseconds: Math.floor(curr_line.time.total * 1000),
-                        duration: Math.floor((next_line.time.total - curr_line.time.total) * 1000),
-                        __typename: "LyricsSynchronizedLine"
-                    });
-                }
-                return parsed_lyrics;
-            }
-
-            static musixmatch_lrc(data) {
-                const regex = /^ *(\[(\d{2}):(\d{2})\.(\d{2})\]) (.*)/;
-                const offset_regex = /^ *\[offset:([-+]?\d+)\]/;
+            static lrc_to_deezer_sync_lines(data) {
+                const regex = /^ *(\[(\d{2}):(\d{2})\.(\d{2})\])(.*)/;
+                const offset_regex = /^ *\[offset:([-+]?\d+)\](?!\s*$)?/i;
 
                 const lines = data.split("\n");
                 const parsed_lyrics = [];
@@ -526,7 +578,7 @@ module.exports = {
 
 
                     total_ms = minutes * 60 * 1000 + seconds * 1000 + hundredths * 10 + offset;
-                    const [next_lrc_timestamp, next_minutes, next_seconds, next_hundredths, next_line] = lines[i + 1].match(regex).slice(1).map((s, i) => (i > 0 && i <= 3) ? parseInt(s) : s);
+                    const [next_lrc_timestamp, next_minutes, next_seconds, next_hundredths, next_line] = lines[i+1].match(regex).slice(1).map((s, i) => (i > 0 && i <= 3) ? parseInt(s) : s);
                     duration = (next_minutes * 60 * 1000 + next_seconds * 1000 + next_hundredths * 10) - total_ms + offset;
 
                     parsed_lyrics.push({
@@ -550,8 +602,130 @@ module.exports = {
                     lineTranslated: "",
                     milliseconds: total_ms + duration, // last line has no duration, so we just add up the time and duration of the previous line
                     duration: 0, // no duration for the last line
-                    __typename: "LyricsSynchronizedLine"
+                    // __typename: "LyricsSynchronizedLine"
                 });
+                return parsed_lyrics;
+            }
+
+            static deezer_sync_lines_to_lrc(data) {
+                const parsed_lyrics = [];
+                for (let line of data) {
+                    parsed_lyrics.push(`${line.lrcTimestamp}${line.line}`);
+                }
+                return parsed_lyrics.join("\n");
+            }
+
+            static deezer_word_by_word_to_custom_lrc(data) {
+                const parsed_lyrics = [];
+                for (let line of data) {
+                    for (let word of line.words) {
+                        const start_time_lrc = `[${String(Math.floor(word.start/60000)).padStart(2, '0')}:${String(Math.floor(word.start/1000)%60).padStart(2, '0')}.${String(Math.floor(word.start%1000)).padStart(3, '0')}]`
+                        const end_time_lrc = `[${String(Math.floor(word.end/60000)).padStart(2, '0')}:${String(Math.floor(word.end/1000)%60).padStart(2, '0')}.${String(Math.floor(word.end%1000)).padStart(3, '0')}]`
+                        const lrc = `${start_time_lrc}-${end_time_lrc}${word.word} `;
+                        parsed_lyrics.push(lrc.trim());
+                    }
+                    parsed_lyrics.push("");
+                }
+                return parsed_lyrics.join("\n");
+            }
+
+            static musixmatch_word_by_word_to_deezer_word_by_word(data) {
+                if (typeof data === "string") { // we store it as a string in the db to save space
+                    data = JSON.parse(data);
+                }
+
+                const parsed_lyrics = [];
+                for (let line of data) {
+                    const start_time = Math.floor(line.ts*1000);
+                    const end_time = Math.floor(line.te*1000);
+                    const parsed_line = {
+                        start: start_time,
+                        end: end_time,
+                        words: []
+                    };
+
+                    for (let i = 0; i < line.l.length; i++) {
+                        if (line.l[i].c.trim() === "") continue;
+                        const part_start = Math.floor(start_time+line.l[i].o*1000);
+                        const part_end = (i === line.l.length-1) ? Math.floor(line.te*1000) : Math.floor(start_time+line.l[i+1].o*1000);
+                        parsed_line.words.push({
+                            start: part_start,
+                            end: part_end,
+                            word: line.l[i].c,
+                            // __typename: "LyricsSynchronizedWord" // not actually used by deezer, so we dont need to add it
+                        });
+                    }
+                    parsed_lyrics.push(parsed_line);
+                }
+                return parsed_lyrics
+            }
+
+            static musixmatch_word_by_word_to_custom_lrc(data) {
+                // we use a custom lrc format where each word is on a new line
+                // a new line is started with a line with only the [newline] tag or an empty line
+                if (typeof data === "string") {
+                    data = JSON.parse(data);
+                }
+
+                const parsed_lyrics = [];
+                for (let line of data) {
+                    let start_time_s = line.ts;
+
+                    for (let i = 0; i < line.l.length; i++) {
+                        if (line.l[i].c.trim() === "") continue;
+                        const start_time_ms = Math.floor((start_time_s+line.l[i].o)*1000);
+                        const end_time_ms = (i === line.l.length-1) ? Math.floor(line.te*1000) : Math.floor((start_time_s+line.l[i+1].o)*1000);
+                        const start_time_lrc = `[${String(Math.floor(start_time_ms/60000)).padStart(2, '0')}:${String(Math.floor(start_time_ms/1000)%60).padStart(2, '0')}.${String(Math.floor(start_time_ms%1000)).padStart(3, '0')}]`
+                        const end_time_lrc = `[${String(Math.floor(end_time_ms/60000)).padStart(2, '0')}:${String(Math.floor(end_time_ms/1000)%60).padStart(2, '0')}.${String(Math.floor(end_time_ms%1000)).padStart(3, '0')}]`
+                        const lrc = `${start_time_lrc}-${end_time_lrc}${line.l[i].c}`;
+                        parsed_lyrics.push(lrc);
+                    }
+                    parsed_lyrics.push("");
+                }
+                return parsed_lyrics.join("\n");
+            }
+
+            static custom_lrc_to_deezer_word_by_word(data) {
+                const regex = /^ *\[(\d{2}):(\d{2})\.(\d{3})\] *- *\[(\d{2}):(\d{2})\.(\d{3})\](.*)/;
+                const offset_regex = /^ *\[offset:([-+]?\d+)\]/i;
+
+                const words = data.split("\n");
+                const parsed_lyrics = [];
+
+                let line = [];
+                let offset = 0;
+                for (let i = 0; i < words.length; i++) {
+                    let word = words[i].trim();
+                    if (word === "" || word.toLowerCase() === "[newline]") {
+                        parsed_lyrics.push({
+                            start: line[0].start,
+                            end: line[line.length-1].end,
+                            words: line
+                        });
+                        line = [];
+                        continue;
+                    }
+                    else if (offset_regex.test(word)) {
+                        offset += parseInt(word.match(offset_regex)[1]);
+                        logger.console.log("Offset:", offset);
+                        continue;
+                    }
+                    const [start_minutes, start_seconds, start_ms, end_minutes, end_seconds, end_ms, word_text] = word.match(regex).slice(1).map((s, i) => (i < 6) ? parseInt(s) : s);
+                    const start = start_minutes*60*1000 + start_seconds*1000 + start_ms + offset;
+                    const end = end_minutes*60*1000 + end_seconds*1000 + end_ms + offset;
+                    line.push({
+                        start: start,
+                        end: end,
+                        word: word_text.trim()
+                    })
+                    if (i === words.length-1) {
+                        parsed_lyrics.push({
+                            start: line[0].start,
+                            end: line[line.length-1].end,
+                            words: line
+                        });
+                    }
+                }
                 return parsed_lyrics;
             }
         }
@@ -601,79 +775,120 @@ module.exports = {
 
                         // ===== REAL HOOK START =====
 
-                        let had_lyrics = true;
-                        if (!resp_json.data.track.lyrics) {
-                            logger.console.debug("Song has no non synced lyrics from deezer");
+                        let which_deezer_lyric_type;
+                        if (resp_json.data.track.lyrics) {
+                            if (resp_json.data.track.lyrics.synchronizedWordByWordLines) {
+                                which_deezer_lyric_type = musixmatch.TYPES.WORD_BY_WORD;
+                            }
+                            else if (resp_json.data.track.lyrics.synchronizedLines) {
+                                which_deezer_lyric_type = musixmatch.TYPES.SYNCED;
+                            }
+                            else {
+                                which_deezer_lyric_type = musixmatch.TYPES.UNSYNCED;
+                            }
+                        }
+                        else {
+                            which_deezer_lyric_type = musixmatch.TYPES.NONE;
+                        }
+
+                        if (which_deezer_lyric_type === musixmatch.TYPES.NONE) {
                             resp_json.data.track.lyrics = {
                                 copyright: dzPlayer.getArtistName(),
                                 id: "-1",
                                 text: "No Lyrics Found",
+                                synchronizedLines: null,
+                                synchronizedWordByWordLines: null,
                                 writers: "",
                                 __typename: "Lyrics"
                             }
-                            had_lyrics = false;
                         }
 
-                        const cached_track_data = await lyrics_db.get_from_indexed_db(dzPlayer.getCurrentSong("ISRC"))
+                        const current_song_isrc = dzPlayer.getCurrentSong("ISRC");
 
-                        // if we have cached lyrics added by the user, we always use them (if deezer has synced lyrics, then that will be used anyways)
-                        if (cached_track_data &&
-                            cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS] &&
-                            cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS
-                        ) {
-                            if (cached_track_data[Lyrics_DB.INDEXES.SYNCED]) {
-                                logger.console.debug("Song has synced lyrics from user");
-                                resp_json.data.track.lyrics.synchronizedLines = Lyrics_Parser.musixmatch_lrc(await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]));
-                                resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "Custom Lyrics" : "Lyrics by Musixmatch");
-                            } else {
-                                logger.console.debug("Song has non synced lyrics from user");
-                                resp_json.data.track.lyrics.text = await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]);
-                                resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "Custom Lyrics" : "Lyrics by Musixmatch");
+                        const cached_track_data = await lyrics_db.get_from_indexed_db(current_song_isrc);
+
+                        const is_cache_expired = cached_track_data ? Lyrics_DB.is_cache_expired(cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP], cached_track_data[Lyrics_DB.INDEXES.TYPE]) : true;
+                        if (!is_cache_expired) {
+                            logger.console.debug("Cached data is not expired");
+                            if (cached_track_data[Lyrics_DB.INDEXES.TYPE] === musixmatch.TYPES.INSTRUMENTAL) {
+                                logger.console.debug("Cached song is instrumental");
                             }
-                        }
-                        else if (!resp_json.data.track.lyrics.synchronizedLines) { // if we havent cached the lyrics and deezer doesnt have synced lyrics
-                            logger.console.debug("Song has no synced lyrics from deezer (and none from user at all)");
+                            if (cached_track_data[Lyrics_DB.INDEXES.TYPE] === musixmatch.TYPES.WORD_BY_WORD) {
+                                logger.console.debug("Cached song has word by word lyrics");
+                                const lyrics = await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS])
+                                resp_json.data.track.lyrics.synchronizedWordByWordLines = Lyrics_Parser.custom_lrc_to_deezer_word_by_word(lyrics);
+                                resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Word by Word Lyrics by " + (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "User" : "Musixmatch");
+                            }
+                            else if (cached_track_data[Lyrics_DB.INDEXES.TYPE] === musixmatch.TYPES.SYNCED) {
+                                logger.console.debug("Cached song has synced lyrics");
+                                resp_json.data.track.lyrics.synchronizedLines = Lyrics_Parser.lrc_to_deezer_sync_lines(await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]));
+                                resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Synced Lyrics by " + (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "User" : "Musixmatch");
+                            }
+                            else if (cached_track_data[Lyrics_DB.INDEXES.TYPE] === musixmatch.TYPES.UNSYNCED) {
+                                logger.console.debug("Cached song has unsynced lyrics");
+                                resp_json.data.track.lyrics.text = await Lyrics_DB.decompress_text(cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS]);
+                                resp_json.data.track.lyrics.writers += resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Lyrics by " + (cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "User" : "Musixmatch");
+                            }
+                            else {
+                                logger.console.debug("Cached song has no lyrics");
+                            }
+
+                        } else {
+                            logger.console.debug("No cached data found or expired");
+                            if (which_deezer_lyric_type === musixmatch.TYPES.WORD_BY_WORD) {
+                                logger.console.debug("Song has word by word synced lyrics from deezer, getting nothing from musixmatch");
+                                return new Response(JSON.stringify(resp_json), {
+                                    status: response.status,
+                                    statusText: response.statusText,
+                                    headers: response.headers,
+                                });
+                            }
 
                             await await_musixmatch_token;
+                            const which_musixmatch_lyric_type = await musixmatch.which_lyric_type(dzPlayer.getCurrentSong("ISRC"));
 
-                            const [status, musixmatch_lyrics, synced] = await musixmatch.get_musixmatch_lyrics(dzPlayer.getCurrentSong("ISRC"), cached_track_data);
-                            if (status === musixmatch.RESPONSES.SUCCESS) {
-                                if (synced) {
-                                    logger.console.debug("Song has synchronized lyrics from musixmatch");
-                                    resp_json.data.track.lyrics.synchronizedLines = Lyrics_Parser.musixmatch_lrc(musixmatch_lyrics);
-                                    resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Lyrics by Musixmatch";
-                                } else {
-                                    if (!had_lyrics) {
+                            if (which_deezer_lyric_type >= which_musixmatch_lyric_type) {
+                                logger.console.debug("Deezer has equal/better lyrics than musixmatch, using them");
+                            }
+                            else if (which_musixmatch_lyric_type === musixmatch.TYPES.NONE) {
+                                logger.console.debug("Song has no lyrics from musixmatch or the type is disabled");
+                                await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, which_musixmatch_lyric_type);
+                            }
+                            else if (which_musixmatch_lyric_type === musixmatch.TYPES.INSTRUMENTAL) {
+                                logger.console.debug("Song is instrumental according to musixmatch");
+                                await lyrics_db.save_to_indexed_db(current_song_isrc, Lyrics_DB.CACHE_TIMESTAMPS.INSTRUMENTAL, null, which_musixmatch_lyric_type);
+                            }
+                            else {
+                                const [status, data] = await musixmatch.get_musixmatch_lyrics(current_song_isrc, which_musixmatch_lyric_type);
+                                if (status === musixmatch.RESPONSES.SUCCESS) {
+                                    if (which_musixmatch_lyric_type === musixmatch.TYPES.WORD_BY_WORD) {
+                                        logger.console.debug("Song has word by word lyrics from musixmatch");
+                                        const lyrics = JSON.parse(data.message.body.richsync.richsync_body);
+                                        const parsed_lyrics = Lyrics_Parser.musixmatch_word_by_word_to_deezer_word_by_word(lyrics);
+                                        resp_json.data.track.lyrics.synchronizedWordByWordLines = parsed_lyrics;
+                                        resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Word by Word Lyrics by Musixmatch";
+                                        await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), await Lyrics_DB.compress_text(Lyrics_Parser.musixmatch_word_by_word_to_custom_lrc(lyrics)), which_musixmatch_lyric_type);
+                                    }
+                                    else if (which_musixmatch_lyric_type === musixmatch.TYPES.SYNCED) {
+                                        logger.console.debug("Song has synced lyrics from musixmatch");
+                                        resp_json.data.track.lyrics.synchronizedLines = Lyrics_Parser.lrc_to_deezer_sync_lines(data.message.body.subtitle.subtitle_body);
+                                        resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Synced Lyrics by Musixmatch";
+                                        await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), await Lyrics_DB.compress_text(data.message.body.subtitle.subtitle_body), which_musixmatch_lyric_type);
+                                    }
+                                    else if (which_musixmatch_lyric_type === musixmatch.TYPES.UNSYNCED) {
                                         logger.console.debug("Song has non synced lyrics from musixmatch");
-                                        resp_json.data.track.lyrics.text = musixmatch_lyrics;
-                                        resp_json.data.track.lyrics.writers += "Lyrics by Musixmatch";
-                                    } else {
-                                        logger.console.debug("Musixmatch has non synced lyrics, but the song already had lyrics, so we dont override them");
+                                        resp_json.data.track.lyrics.text = data.message.body.lyrics.lyrics_body;
+                                        resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Lyrics by Musixmatch";
+                                        await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), await Lyrics_DB.compress_text(data.message.body.lyrics.lyrics_body), which_musixmatch_lyric_type);
                                     }
                                 }
-                            }
-                            else { // no musixmatch lyrics
-                                if (!had_lyrics) { // only add dummy line if the song had no lyrics at all, otherwise we would override the non sync lyrics
-                                    resp_json.data.track.lyrics.synchronizedLines = [{ // if we dont put a dummy line here, it will show the lines of the last song with lyrics <- actually this might be fixed, i cant reproduce it with the new update
-                                        "lrcTimestamp":"[00:00.00]",
-                                        "line":"No Lyrics Found",
-                                        "lineTranslated":"",
-                                        "milliseconds": 0,
-                                        "duration": 0,
-                                        "__typename":"LyricsSynchronizedLine"
-                                    }];
+                                else if (status === musixmatch.RESPONSES.NOT_FOUND) {
+                                    await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, which_musixmatch_lyric_type);
                                 }
-                                logger.console.debug("Song has no lyrics from musixmatch, reason:", status);
-                            }
-                            // logger.console.debug("Modified response:", resp_json);
-                        }
-                        else {
-                            if (resp_json.data.track.lyrics.synchronizedWordByWordLines) {
-                                logger.console.debug("Song has word by word synced lyrics from deezer");
-                            } else {
-                                logger.console.debug("Song has synced lyrics from deezer");
                             }
                         }
+
+                        logger.console.debug("Modified response:", resp_json);
 
                         // ===== REAL HOOK END =====
 
@@ -757,11 +972,11 @@ module.exports = {
         }
 
         class UI {
-            static create_ui() {
+            static create_ui(await_deezer_token) {
                 let parent_div = document.querySelector("#page_player > div > div.chakra-button__group")
                 if (parent_div) {
                     UI.create_css();
-                    parent_div.prepend(UI.create_file_upload_button());
+                    parent_div.prepend(UI.create_main_button(await_deezer_token));
                     logger.console.debug("UI created");
                 } else {
                     logger.console.debug("Waiting for parent");
@@ -773,7 +988,7 @@ module.exports = {
                                     observer.disconnect();
                                     if (document.querySelector("button.lyrics_sync_custom_lyrics")) return;
                                     UI.create_css();
-                                    parent_div.prepend(UI.create_file_upload_button());;
+                                    parent_div.prepend(UI.create_main_button(await_deezer_token));
                                     logger.console.debug("UI created");
                                 }
                             }
@@ -795,19 +1010,44 @@ module.exports = {
                 for (const file of files) {
                     try {
                         const [isrc, ext] = file.name.split(".");
-                        const synced = ext === "lrc";
 
                         const reader = new FileReader();
                         reader.onload = async (e) => {
                             const lyrics = e.target.result.replace("\r", "");
-                            if (!synced && /.*(\[(\d{2}):(\d{2})\.(\d{2})\]) (.*)/.test(lyrics)) {
-                                logger.ui.warn(`Lyrics in ${file.name} seem to be synced, but the file extension is not .lrc. If the lyrics are synced, the extension must be .lrc`);
+                            const word_by_word_regex = /^ *\[\d{2}:\d{2}\.\d{3}\] *- *\[\d{2}:\d{2}\.\d{3}\].*/m
+                            const line_by_line_regex = /^ *\[\d{2}:\d{2}\.\d{2}\].*/m
+                            const ext_to_type = {
+                                "txt": musixmatch.TYPES.UNSYNCED,
+                                "lrc": musixmatch.TYPES.SYNCED,
+                                "wlrc": musixmatch.TYPES.WORD_BY_WORD,
+                                "lrcw": musixmatch.TYPES.WORD_BY_WORD
                             }
+                            const type_to_txt = {
+                                [musixmatch.TYPES.UNSYNCED]: "unsynced",
+                                [musixmatch.TYPES.SYNCED]: "synced",
+                                [musixmatch.TYPES.WORD_BY_WORD]: "word by word"
+                            }
+
+                            if (ext === "lrc" &&
+                                (!line_by_line_regex.test(lyrics) || word_by_word_regex.test(lyrics))
+                            ) {
+                                logger.ui.warn(`Lyrics seem to be unsynced or word by word, but you selected synced.`);
+                            }
+                            else if ((ext === "wlrc" || ext === "lrcw") &&
+                                !word_by_word_regex.test(lyrics)
+                            ) {
+                                logger.ui.warn(`Lyrics seem to be unsynced or synced, but you selected word by word.`);
+                            }
+                            else if (!["lrc", "lrcw", "wlrc"].includes(ext) &&
+                                word_by_word_regex.test(lyrics) || line_by_line_regex.test(lyrics)) {
+                                logger.ui.warn(`Lyrics seem to be synced in some way, but you selected unsynced.`);
+                            }
+
                             const compressed_lyrics = await Lyrics_DB.compress_text(lyrics);
                             // we pass the db_objects so we can reuse the same transaction
-                            await lyrics_db.save_to_indexed_db(isrc, Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS, compressed_lyrics, synced, opened_db);
+                            await lyrics_db.save_to_indexed_db(isrc, Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS, compressed_lyrics, ext_to_type[ext] || musixmatch.TYPES.UNSYNCED, opened_db);
 
-                            logger.ui.info(`Saved ${isrc}${ext ? "."+ext : ""} to cache db, is synced: ${synced}`);
+                            logger.ui.info(`Saved ${isrc}${ext ? "."+ext : ""} to cache db, type: ${type_to_txt[ext_to_type[ext]] || "unsynced"}`);
                             status_elem.textContent = `Uploaded ${++c}/${files.length} Files`;
                         }
                         reader.onerror = e => {
@@ -826,7 +1066,7 @@ module.exports = {
             static _start_file_upload_dialog(status_elem) {
                 const input = document.createElement("input");
                 input.type = "file";
-                input.accept = ".lrc,.txt";
+                input.accept = ".txt,.lrc,.lrcw,.wlrc";
                 input.multiple = true;
                 input.style.display = "none";
                 input.onchange = () => {
@@ -835,10 +1075,15 @@ module.exports = {
                 }
                 input.click();
             }
-            static _download_lyrics(isrc, lyrics, synced) {
+            static _download_lyrics(isrc, lyrics, type) {
+                const type_to_ext = {
+                    [musixmatch.TYPES.UNSYNCED]: "txt",
+                    [musixmatch.TYPES.SYNCED]: "lrc",
+                    [musixmatch.TYPES.WORD_BY_WORD]: "wlrc" // enhanced lrc
+                }
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(new Blob([lyrics], {type: "text/plain"}));
-                a.download = `${isrc}.${synced ? "lrc" : "txt"}`;
+                a.download = `${isrc}.${type_to_ext[type]}`;
                 a.click();
             }
 
@@ -899,6 +1144,17 @@ module.exports = {
                     button.style.gridColumn = `span ${size}`;
                     return button;
                 },
+                create_dropdown(options, title, size=1) {
+                    const select = document.createElement("select");
+                    select.title = title;
+                    select.style.gridColumn = `span ${size}`;
+                    for (const option of options) {
+                        const opt = document.createElement("option");
+                        opt.textContent = option;
+                        select.appendChild(opt);
+                    }
+                    return select;
+                },
                 create_border_div() {
                     const div = document.createElement("div");
                     div.className = "lyrics_sync_border";
@@ -906,12 +1162,15 @@ module.exports = {
                 }
             }
 
-            static create_config_ui() {
+            static create_config_ui(await_deezer_token) {
                 const container = document.createElement("div");
                 container.className = "lyrics_sync_custom_lyrics_container lyrics_sync_hidden";
 
-                const title_span = this._Element_Factory.create_span("Custom Lyrics", "Use custom lyrics, synced or not. Custom Lyrics are unaffected by cache restrictions (expiration, max track limit).", 2);
-                const reload_page_button = this._Element_Factory.create_button("", "Reloads the page to apply lyrics changes (Deezer caches lyrics on their own).", 1);
+                const title_span = this._Element_Factory.create_span("Custom Lyrics", "Use custom lyrics, synced or not. Custom Lyrics are unaffected by cache restrictions (expiration, max track limit). Click to open the documentation.", 2);
+                title_span.onclick = () => {
+                    window.open("https://google.com");
+                }
+                const reload_page_button = this._Element_Factory.create_button("", "Reloads the page to apply lyrics changes (Deezer caches lyrics on its own).", 1);
                 reload_page_button.className = "lyrics_sync_reload_page_button";
                 reload_page_button.textContent = "⟳";
                 reload_page_button.onclick = () => window.location.reload();
@@ -930,30 +1189,64 @@ module.exports = {
                     config.config.musixmatch.enabled = !musixmatch_enabled_checkbox.checked;
                 }
 
-                const lyrics_textarea = this._Element_Factory.create_textarea("Lyrics", "Type in the lyrics here. Synced lyrics must use the LRC format without a title.", 3);
+                const [word_by_word_enabled_label, word_by_word_enabled_checkbox] = this._Element_Factory.create_checkbox("Word", "Enable or disable word by word lyrics from musixmatch.", 1);
+                word_by_word_enabled_checkbox.checked = config.config.musixmatch.types.word_by_word;
+                word_by_word_enabled_checkbox.onchange = () => {
+                    config.config.musixmatch.types.word_by_word = word_by_word_enabled_checkbox.checked;
+                }
+                const [synced_enabled_label, synced_enabled_checkbox] = this._Element_Factory.create_checkbox("Line", "Enable or disable synced (line by line) lyrics from musixmatch.", 1);
+                synced_enabled_checkbox.checked = config.config.musixmatch.types.synced;
+                synced_enabled_checkbox.onchange = () => {
+                    config.config.musixmatch.types.synced = synced_enabled_checkbox.checked;
+                }
+                const [unsynced_enabled_label, unsynced_enabled_checkbox] = this._Element_Factory.create_checkbox("Unsynced", "Enable or disable unsynced lyrics from musixmatch.", 1);
+                unsynced_enabled_checkbox.checked = config.config.musixmatch.types.unsynced;
+                unsynced_enabled_checkbox.onchange = () => {
+                    config.config.musixmatch.types.unsynced = unsynced_enabled_checkbox.checked;
+                }
 
-                const isrc_input = this._Element_Factory.create_input("ISRC", "ISRC of the track you want to add lyrics to. Leave empty if you want to add lyrics to the currently playing track. Use google or some site to search for the ISRC of a track.", 1);
+                const lyrics_textarea = this._Element_Factory.create_textarea("Lyrics", "Type in the lyrics here. Synced lyrics must use the LRC format without a title. Word by Word lyrics must use the custom lrc format for this script.", 3);
 
-                const [synced_checkbox_label, synced_checkbox] = this._Element_Factory.create_checkbox("Synced", "If the above lyrics are synced and use the LRC format.", 1);
+                const isrc_input = this._Element_Factory.create_input("ISRC", "ISRC of the track you want to add lyrics to. Leave empty if you want to add lyrics to the currently playing track. Use google to search for the ISRC of a track or use this script to get the ISRC of the current song.", 1);
+
+                const type_dropdown = this._Element_Factory.create_dropdown(
+                    ["Unsynced", "Synced", "Word by Word"],
+                    "Select the type of the lyrics you want to upload. Word by Word is the most accurate, but also the most time consuming to create.", 1
+                );
 
                 const submit_from_textarea_button = this._Element_Factory.create_button("Submit", "Submit the lyrics from the textarea.", 1);
                 submit_from_textarea_button.onclick = async () => {
                     logger.ui.clear();
                     const lyrics = lyrics_textarea.value.trim();
                     const isrc = isrc_input.value.trim() || dzPlayer.getCurrentSong("ISRC");
-                    const synced = synced_checkbox.checked;
+
                     if (!lyrics || !isrc) {
                         logger.ui.warn("Lyrics are empty or song has no ISRC");
                         return;
                     }
-                    if (!synced && /.*(\[(\d{2}):(\d{2})\.(\d{2})\]) (.*)/.test(lyrics)) {
-                        logger.ui.warn(`Lyrics seem to be synced, but the file extension is not .lrc. If the lyrics are synced, the extension must be .lrc`);
+                    const word_by_word_regex = /^ *\[\d{2}:\d{2}\.\d{3}\] *- *\[\d{2}:\d{2}\.\d{3}\].*/m
+                    const line_by_line_regex = /^ *\[\d{2}:\d{2}\.\d{2}\].*/m
+                    if (type_dropdown.selectedIndex === 0 &&
+                        (word_by_word_regex.test(lyrics) || line_by_line_regex.test(lyrics))
+                    ) {
+                        logger.ui.warn(`Lyrics seem to be synced in some way, but you selected unsynced.`);
                     }
+                    else if (type_dropdown.selectedIndex === 1 &&
+                        (!line_by_line_regex.test(lyrics) || word_by_word_regex.test(lyrics))
+                    ) {
+                        logger.ui.warn(`Lyrics seem to be unsynced or word by word, but you selected synced.`);
+                    }
+                    else if (type_dropdown.selectedIndex === 2 &&
+                        !word_by_word_regex.test(lyrics)
+                    ) {
+                        logger.ui.warn(`Lyrics seem to be unsynced or synced, but you selected word by word.`);
+                    }
+
                     const compressed_lyrics = await Lyrics_DB.compress_text(lyrics);
-                    await lyrics_db.save_to_indexed_db(isrc, Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS, compressed_lyrics, synced);
-                    logger.ui.info(`Saved ${isrc} to cache db, is synced: ${synced}`);
+                    await lyrics_db.save_to_indexed_db(isrc, Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS, compressed_lyrics, [musixmatch.TYPES.UNSYNCED, musixmatch.TYPES.SYNCED, musixmatch.TYPES.WORD_BY_WORD][type_dropdown.selectedIndex]);
+                    logger.ui.info(`Saved ${isrc} to cache db, type: ${type_dropdown.options[type_dropdown.selectedIndex].textContent}`);
                 }
-                const upload_files_button = this._Element_Factory.create_button("Upload Custom Lyrics", "Upload lyrics from files. The name of the file must be the ISRC of the track. The extension must be .lrc if the lyrics are synced using the LRC format. All other file types are treated as raw text lyrics.", 3);
+                const upload_files_button = this._Element_Factory.create_button("Upload Custom Lyrics", "Upload lyrics from files. The name of the file must be the ISRC of the track. The extension must be .lrc if the lyrics are synced using the LRC format. If the lyrics are word by word synced using the custom lrc format, then the extension must either be .lrcw or .wlrc. All other file types are treated as raw text lyrics.", 3);
                 upload_files_button.onclick = () => this._start_file_upload_dialog(upload_files_button);
 
                 // === song info start ===
@@ -962,17 +1255,11 @@ module.exports = {
                 reload_song_info_button.className = "lyrics_sync_reload_song_info_button";
                 reload_song_info_button.textContent = "⟳";
 
-                const [export_to_clipboard_label, export_to_clipboard_checkbox] = this._Element_Factory.create_checkbox("Clipboard", "If checked, the export button copies the lyrics to your clipboard, otherwise it downloads them.", 1);
-                export_to_clipboard_checkbox.checked = config.config.export_to_clipboard_or_file === "clipboard";
-                export_to_clipboard_checkbox.onchange = () => {
-                    config.config.export_to_clipboard_or_file = export_to_clipboard_checkbox.checked ? "clipboard" : "file";
-                }
-
                 const song_info_container_div = document.createElement("div");
                 song_info_container_div.className = "lyrics_sync_song_info_container";
                 song_info_container_div.style.gridColumn = "span 3";
 
-                const isrc_label = this._Element_Factory.create_label("ISRC: ", "The ISRC of a song is a standardized unique identifier of a song. We use it to tell other Platforms what song we mean.", 2);
+                const isrc_label = this._Element_Factory.create_label("ISRC: ", "The ISRC of a song is a standardized unique identifier of a song. We use it to tell other Platforms what song we mean.", 3);
                 const isrc_span = this._Element_Factory.create_span("Not fetched", "", null);
                 isrc_label.appendChild(isrc_span);
 
@@ -986,85 +1273,132 @@ module.exports = {
                         const lyrics = cached_track_data[Lyrics_DB.INDEXES.COMPRESSED_LYRICS];
                         if (lyrics) {
                             logger.ui.info("Lyrics found in cache.");
-                            return [lyrics, "YES_CACHE_"+(cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "MANUAL" : "MUSIXMATCH"), cached_track_data[Lyrics_DB.INDEXES.SYNCED]];
+                            return [lyrics, cached_track_data[Lyrics_DB.INDEXES.TYPE], cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP] === Lyrics_DB.CACHE_TIMESTAMPS.CUSTOM_LYRICS ? "Custom" : "Musixmatch"];
                         } else {
                             logger.ui.info("Song was cached, but had no lyrics.");
-                            return [null, "NO_CACHE_MUSIXMATCH", false];
+                            return [null, musixmatch.TYPES.NONE, "Cache"];
                         }
                     }
                     else {
                         logger.ui.info("Song was not cached, getting deezer lyrics.");
 
-                        if (dzPlayer.getCurrentSong("LYRICS_ID") === -1) { // we hook the getcurrentfetch call and return -1 for the lyricsid if the song has no lyrics, it doesnt exist for song without lyrics by default
+                        const lyrics_id = dzPlayer.getCurrentSong("LYRICS_ID")
+                        if (lyrics_id === -1) { // we hook the getcurrentfetch call and return -1 for the lyricsid if the song has no lyrics, it doesnt exist for song without lyrics by default
                             logger.ui.info("No lyrics found in deezer");
-                            return [null, "NO_DEEZER", false];
+                            return [null, musixmatch.TYPES.NONE, "Deezer"];
                         }
 
-                        if (!dzPlayer.hasLoadedLyrics()) {
-                            await dzPlayer.control.loadLyrics();
-                        }
+                        await await_deezer_token;
 
-                        logger.ui.info("Waiting for lyrics to load");
-                        await new Promise((resolve) => {
-                            const wait_for_deezer_lyrics_interval = setInterval(() => {
-                                if (dzPlayer.hasLoadedLyrics()) {
-                                    clearInterval(wait_for_deezer_lyrics_interval);
-                                    resolve();
-                                }
-                            }, 50);
-                        });
-
-                        let lyrics = dzPlayer.getLyrics();
-                        if (!lyrics) { // this check should be uselss
-                            logger.ui.info("No lyrics found.");
-                            return [null, "NO_DEEZER", false];
+                        const data = await deezer.get_lyrics(dzPlayer.getSongId());
+                        if (!data.data.track.lyrics) {
+                            logger.ui.info("No lyrics found in deezer");
+                            return [null, musixmatch.TYPES.NONE, "Deezer"];
                         }
-                        const synced = dzPlayer.hasSyncLyrics();
-                        lyrics = synced ? lyrics.map(l => l.line).join("\n") : lyrics.join("\n");
-                        logger.ui.info("Lyrics found in deezer");
-                        return [lyrics, "YES_DEEZER", synced];
+                        if (data.data.track.lyrics.synchronizedWordByWordLines) {
+                            logger.ui.info("Song has word by word synced lyrics from deezer");
+                            return [data.data.track.lyrics.synchronizedWordByWordLines, musixmatch.TYPES.WORD_BY_WORD, "Deezer"];
+                        }
+                        if (data.data.track.lyrics.synchronizedLines) {
+                            logger.ui.info("Song has synced lyrics from deezer");
+                            return [data.data.track.lyrics.synchronizedLines, musixmatch.TYPES.SYNCED, "Deezer"];
+                        }
+                        logger.ui.info("Song has unsynced lyrics from deezer");
+                        return [data.data.track.lyrics.text, musixmatch.TYPES.UNSYNCED, "Deezer"];
                     }
                 }
 
                 reload_song_info_button.onclick = async () => {
                     logger.ui.clear();
                     let isrc = dzPlayer.getCurrentSong("ISRC");
-                    let lyrics, info, synced;
+                    let lyrics, type, source;
                     if (!isrc) {
-                        lyrics = info = synced = null;
+                        lyrics = type = source = null;
                         isrc = "Unkown"
                         logger.ui.warn("No ISRC found for current song");
                     } else {
-                        [lyrics, info, synced] = await has_lyrics(isrc);
+                        [lyrics, type, source] = await has_lyrics(isrc);
+                    }
+                    const type_to_text = {
+                        [musixmatch.TYPES.NONE]: "No Lyrics",
+                        [musixmatch.TYPES.WORD_BY_WORD]: "Word by Word",
+                        [musixmatch.TYPES.SYNCED]: "Synced",
+                        [musixmatch.TYPES.UNSYNCED]: "Unsynced",
                     }
 
                     isrc_span.textContent = isrc;
                     if (lyrics) {
                         has_lyrics_span.textContent = "Yes";
-                        has_lyrics_span.textContent += synced ? " (Synced)" : " (Unsynced)";
-                        has_lyrics_span.textContent += ` - ${info === "YES_CACHE_MANUAL" ? "Custom (Cache)" : (info === "YES_CACHE_MUSIXMATCH" ? "Musixmatch (Cache)" : "Deezer")}`;
+                        has_lyrics_span.textContent += " (" + type_to_text[type] + ")";
+                        has_lyrics_span.textContent += " - " + source;
                     }
                     else {
                         has_lyrics_span.textContent = "No";
                     }
-                    return [isrc, info, lyrics, synced];
+                    return [isrc, type, lyrics, source];
                 }
+
+                song_info_container_div.append(isrc_label, has_lyrics_label);
+                // === song info end ===
 
                 const export_lyrics_button = this._Element_Factory.create_button("Export", "Export the lyrics of the current song which Deezer would use. (Hierarchy: Synced > Unsynced and Custom > Musixmatch > Deezer. If it's synced or not has higher priority)", 1);
                 export_lyrics_button.onclick = async () => {
-                    const [isrc, info, lyrics, synced] = await reload_song_info_button.onclick();
+                    const [isrc, type, lyrics, source] = await reload_song_info_button.onclick();
+
                     if (lyrics) {
+                        let to_export;
+                        if (source === "Deezer") {
+                            if (type === musixmatch.TYPES.WORD_BY_WORD) {
+                                to_export = Lyrics_Parser.deezer_word_by_word_to_custom_lrc(lyrics);
+                            }
+                            else if (type === musixmatch.TYPES.SYNCED) {
+                                to_export = Lyrics_Parser.deezer_sync_lines_to_lrc(lyrics);
+                            }
+                            else if (type === musixmatch.TYPES.UNSYNCED) {
+                                to_export = lyrics;
+                            }
+                        }
+                        else {
+                            if (type !== musixmatch.TYPES.NONE) to_export = await Lyrics_DB.decompress_text(lyrics);
+                        }
+
+                        if (!to_export) {
+                            logger.ui.info("No lyrics to export");
+                            return;
+                        }
+
                         if (config.config.export_to_clipboard_or_file === "clipboard") {
                             logger.ui.info("Copying lyrics to clipboard");
-                            navigator.clipboard.writeText(info === "YES_CACHE_DEEZER" ? lyrics : await Lyrics_DB.decompress_text(lyrics));
+                            navigator.clipboard.writeText(to_export);
                         } else {
                             logger.ui.info("Downloading lyrics");
-                            this._download_lyrics(isrc, info === "YES_CACHE_DEEZER" ? lyrics : await Lyrics_DB.decompress_text(lyrics), synced);
+                            this._download_lyrics(isrc, to_export, type);
                         }
                     }
                 }
-                song_info_container_div.append(isrc_label, export_lyrics_button, has_lyrics_label);
-                // === song info end ===
+
+                const [export_to_clipboard_label, export_to_clipboard_checkbox] = this._Element_Factory.create_checkbox("Clipboard", "If checked, the export button copies the lyrics to your clipboard, otherwise it downloads them.", 1);
+                export_to_clipboard_checkbox.checked = config.config.export_to_clipboard_or_file === "clipboard";
+                export_to_clipboard_checkbox.onchange = () => {
+                    config.config.export_to_clipboard_or_file = export_to_clipboard_checkbox.checked ? "clipboard" : "file";
+                }
+
+                const delete_cache_button = this._Element_Factory.create_button("Invalidate", "Clear the cache of the current song. This will delete custom lyrics.", 1);
+                delete_cache_button.onclick = async () => {
+                    logger.ui.clear();
+                    const isrc = dzPlayer.getCurrentSong("ISRC");
+                    if (!isrc) {
+                        logger.ui.warn("No ISRC found for current song");
+                        return;
+                    }
+                    const cached_track_data = await lyrics_db.get_from_indexed_db(isrc);
+                    if (!cached_track_data) {
+                        logger.ui.warn("No cache found for current song");
+                        return;
+                    }
+                    await lyrics_db.delete_from_indexed_db(isrc);
+                    logger.ui.info("Deleted cache of current song");
+                }
 
                 const log_textarea = document.createElement("textarea");
                 log_textarea.placeholder = "Log";
@@ -1077,7 +1411,7 @@ module.exports = {
                 drop_zone_div.className = "lyrics_sync_drop_zone lyrics_sync_hidden";
                 drop_zone_div.textContent = "Drop Lyric Files Here";
                 container.ondragenter = e => {
-                    drop_zone_div.classList.remove("lyrics_sync_hidden");
+                    if (e.dataTransfer.types.includes("Files")) drop_zone_div.classList.remove("lyrics_sync_hidden");
                     e.preventDefault();
                 }
                 drop_zone_div.ondragover = e => e.preventDefault();
@@ -1091,11 +1425,11 @@ module.exports = {
                     e.preventDefault();
                 }
 
-                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, lyrics_textarea, isrc_input, synced_checkbox_label, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, export_to_clipboard_label, song_info_container_div, log_textarea, drop_zone_div);
+                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, word_by_word_enabled_label, synced_enabled_label, unsynced_enabled_label, lyrics_textarea, isrc_input, type_dropdown, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, song_info_container_div, export_to_clipboard_label, export_lyrics_button, delete_cache_button, log_textarea, drop_zone_div);
                 return container;
             }
 
-            static create_file_upload_button() {
+            static create_main_button(await_deezer_token) {
                 const button = document.createElement("button");
                 button.title = "Use custom lyrics.";
                 button.className = "lyrics_sync_custom_lyrics";
@@ -1104,7 +1438,7 @@ module.exports = {
                     <path d="m445.767 308.42-53.374-76.49V97.241c0-6.669-2.604-12.94-7.318-17.645L312.787 7.301A24.8 24.8 0 0 0 295.149 0H77.597C54.161 0 35.103 19.066 35.103 42.494V425.68c0 23.427 19.059 42.494 42.494 42.494h199.021c1.902 2.54 3.915 5 6.232 7.205 10.033 9.593 23.547 15.576 38.501 15.576h34.363c14.936 0 28.483-5.982 38.517-15.576 11.693-11.159 17.348-25.825 17.348-40.29v-40.06c16.216-3.418 30.114-13.866 37.91-28.811a55.66 55.66 0 0 0-3.722-57.798M170.095 414.872H87.422V53.302h175.681v46.752c0 16.655 13.547 30.209 30.209 30.209h46.76v66.377h-.255v.039c-17.685-.415-35.529 7.285-46.934 23.46l-61.586 88.28c-11.965 17.134-13.387 39.284-3.722 57.799 7.795 14.945 21.692 25.393 37.91 28.811v19.842h-95.39zm240.221-69.101c-2.03 3.866-5.99 6.271-10.337 6.271h-32.591v83.048a11.68 11.68 0 0 1-11.659 11.662h-34.396a11.68 11.68 0 0 1-11.662-11.662v-83.048h-32.59c-4.346 0-8.308-2.405-10.336-6.271a11.62 11.62 0 0 1 .783-12.07l61.424-88.064a11.7 11.7 0 0 1 9.57-4.984h.017c3.802 0 7.38 1.861 9.568 4.984l61.427 88.064a11.62 11.62 0 0 1 .782 12.07"/>
                 </svg>`
 
-                const container = this.create_config_ui();
+                const container = this.create_config_ui(await_deezer_token);
                 document.querySelector("#page_player > div > div.chakra-button__group").insertBefore(container, button.nextSibling);
 
                 button.onclick = () => {
@@ -1147,7 +1481,7 @@ module.exports = {
 
                     div.lyrics_sync_custom_lyrics_container {
                         width: 300px;
-                        max-height: 500px;
+                        max-height: 550px;
                         position: absolute;
                         bottom: 0;
                         right: 0;
@@ -1189,7 +1523,8 @@ module.exports = {
 
                     div.lyrics_sync_custom_lyrics_container textarea,
                     div.lyrics_sync_custom_lyrics_container input[type="text"],
-                    div.lyrics_sync_custom_lyrics_container button {
+                    div.lyrics_sync_custom_lyrics_container button,
+                    div.lyrics_sync_custom_lyrics_container select {
                         background-color: var(--tempo-colors-background-neutral-tertiary-default);
                         border: 1px var(--tempo-colors-border-neutral-primary-default) solid;
                         border-radius: var(--tempo-radii-s);
@@ -1207,7 +1542,8 @@ module.exports = {
 
                     div.lyrics_sync_custom_lyrics_container input[type="text"],
                     div.lyrics_sync_custom_lyrics_container label,
-                    div.lyrics_sync_custom_lyrics_container button {
+                    div.lyrics_sync_custom_lyrics_container button,
+                    div.lyrics_sync_custom_lyrics_container select {
                         height: 25px;
                     }
 
@@ -1216,7 +1552,8 @@ module.exports = {
                         padding: 0px 5px;
                     }
 
-                    div.lyrics_sync_custom_lyrics_container input[type="text"] {
+                    div.lyrics_sync_custom_lyrics_container input[type="text"],
+                    div.lyrics_sync_custom_lyrics_container select {
                         border-radius: 5px;
                         font-size: 12px;
                     }
@@ -1240,11 +1577,13 @@ module.exports = {
 
                     div.lyrics_sync_custom_lyrics_container input:hover,
                     div.lyrics_sync_custom_lyrics_container textarea:hover,
-                    div.lyrics_sync_custom_lyrics_container button:hover {
+                    div.lyrics_sync_custom_lyrics_container button:hover,
+                    div.lyrics_sync_custom_lyrics_container select:hover {
                         background-color: var(--tempo-colors-background-neutral-tertiary-hovered);
                     }
                     div.lyrics_sync_custom_lyrics_container textarea:focus,
-                    div.lyrics_sync_custom_lyrics_container input:focus {
+                    div.lyrics_sync_custom_lyrics_container input:focus,
+                    div.lyrics_sync_custom_lyrics_container select:focus {
                         border-color: var(--tempo-colors-border-neutral-primary-focused);
                     }
 
@@ -1306,8 +1645,13 @@ module.exports = {
                     enabled: true,
                     export_to_clipboard_or_file: "file",
                     musixmatch: {
-                        enabled: true,
                         token: null,
+                        enabled: true,
+                        types: {
+                            word_by_word: true,
+                            synced: true,
+                            unsynced: true
+                        }
                     }
                 };
             }
@@ -1338,10 +1682,12 @@ module.exports = {
         const config = new Config();
         const lyrics_db = new Lyrics_DB();
         const musixmatch = new Musixmatch();
+        const deezer = new Deezer();
 
         (async function main() {
+            const await_deezer_token = deezer.get_auth_token();
             logger.console.log("Creating UI");
-            UI.create_ui();
+            UI.create_ui(await_deezer_token);
 
             const await_musixmatch_token = musixmatch.retrieve_token();
 
