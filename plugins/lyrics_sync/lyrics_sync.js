@@ -98,7 +98,7 @@ module.exports = {
                 });
                 if (r.ok) {
                     const data = r.json();
-                    if (data.errors > 0 && data.errors[0].type === "JwtTokenExpiredError") {
+                    if (data.errors && data.errors[0].type === "JwtTokenExpiredError") {
                         this.get_auth_token();
                         return this.get_lyrics(song_id);
                     }
