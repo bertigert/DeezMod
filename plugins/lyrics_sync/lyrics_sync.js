@@ -1,7 +1,7 @@
 module.exports = {
     name: "Lyrics Sync",
     description: "Adds support for syncinc lyrics using Musixmatch and local files",
-    version: "1.0.1",
+    version: "1.0.2",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
