@@ -8,7 +8,7 @@ Plugins are scripts which allow you to add custom functionality to Deezer. To in
 Allows you to add all songs by an artist to a playlist or an already existing one. Highly configurable. Port of [this](https://github.com/bertigert/Deezer-Release-Radar) userscript.
 
 ### DevMode
-Enables DevMode which enabled DevTool (ctrl+shift+i).
+Enables DevMode which enables DevTool (ctrl+shift+i).
 
 ### Disable Sentry
 Disables the sending of telementry to Sentry.io.
