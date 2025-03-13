@@ -1,7 +1,7 @@
 module.exports = {
     name: "Lyrics Sync",
     description: "Adds support for syncinc lyrics using Musixmatch and local files",
-    version: "1.0",
+    version: "1.0.1",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
@@ -1168,7 +1168,7 @@ module.exports = {
 
                 const title_span = this._Element_Factory.create_span("Custom Lyrics", "Use custom lyrics, synced or not. Custom Lyrics are unaffected by cache restrictions (expiration, max track limit). Click to open the documentation.", 2);
                 title_span.onclick = () => {
-                    window.open("https://google.com");
+                    window.open("https://github.com/bertigert/Deezer-Lyrics-Sync");
                 }
                 const reload_page_button = this._Element_Factory.create_button("", "Reloads the page to apply lyrics changes (Deezer caches lyrics on its own).", 1);
                 reload_page_button.className = "lyrics_sync_reload_page_button";
