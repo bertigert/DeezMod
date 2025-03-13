@@ -1341,7 +1341,7 @@ module.exports = {
                 song_info_container_div.append(isrc_label, has_lyrics_label);
                 // === song info end ===
 
-                const export_lyrics_button = this._Element_Factory.create_button("Export", "Export the lyrics of the current song which Deezer would use. (Hierarchy: Synced > Unsynced and Custom > Musixmatch > Deezer. If it's synced or not has higher priority)", 1);
+                const export_lyrics_button = this._Element_Factory.create_button("Export", "Export the lyrics of the current song which Deezer would use. (Hierarchy: Word by Word Synced > Line by Line Synced > Unsynced and Custom > Deezer > Musixmatch. If it's synced or not has higher priority than the source)", 1);
                 export_lyrics_button.onclick = async () => {
                     const [isrc, type, lyrics, source] = await reload_song_info_button.onclick();
 
