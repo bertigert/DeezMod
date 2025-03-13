@@ -381,8 +381,6 @@ module.exports = {
 
             async make_request(url) {
                 try {
-                    logger.console.debug("Making request to musixmatch:", url);
-                    const start = Date.now();
                     const response = await node_fetch(url, {
                         headers: {
                             cookie: "AWSELB=unknown"
@@ -394,7 +392,6 @@ module.exports = {
                     }
 
                     const data = await response.json();
-                    logger.console.debug("Got data from musixmatch:", data, "time took:", Date.now()-start, "ms");
                     const header = data.message?.header;
 
                     if (header?.status_code === 401) {
@@ -482,7 +479,7 @@ module.exports = {
                 }
                 const [status, data] = await this.make_request(Musixmatch._parse_url(this.URLS.GET_TRACK, track_isrc, this.token));
                 if (status === this.RESPONSES.SUCCESS) {
-                    logger.console.debug("Got track data:", data);
+                    // logger.console.debug("Got track data:", data);
                     return [status, data];
                 }
                 return [status, null];
@@ -518,7 +515,7 @@ module.exports = {
                 }
 
                 const do_request = async (url_template) => {
-                    logger.console.debug(`Getting data for track ${track_isrc}`);
+                    // logger.console.debug(`Getting data for track ${track_isrc}`);
                     const [status, data] = await this.make_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format));
                     if (status === this.RESPONSES.INVALID_TOKEN) {
                         const has_new_token = await this.renew_token();
@@ -543,7 +540,7 @@ module.exports = {
                     }
                 }
                 const r = await do_request(type === this.TYPES.WORD_BY_WORD ? this.URLS.WORD_BY_WORD_LYRICS : type === this.TYPES.SYNCED ? this.URLS.SYNCED_LYRICS : this.URLS.UNSYNCED_LYRICS);
-                logger.console.debug("Musixmatch lyrics response:", r);
+                // logger.console.debug("Musixmatch lyrics response:", r);
                 return r;
             }
         }
@@ -741,8 +738,7 @@ module.exports = {
             // we use this approach to unhook to avoid unhooking hooks created after our hooks
             static is_fetch_hooked = true;
             static is_get_current_song_hooked = true;
-            static is_has_lyrics_hooked = true;
-
+            
             static hook_fetch(await_musixmatch_token) {
                 const orig_fetch = window.fetch;
                 window.fetch = async function (...args) {
@@ -765,7 +761,7 @@ module.exports = {
                         logger.console.debug('Catched original lyrics fetch call');
 
                         if (dzPlayer.getCurrentSong("LYRICS_ID") === undefined) {
-                            logger.console.debug("This song is probably a custom mp3 or something different which cant have lyrics");
+                            // logger.console.debug("This song is probably a custom mp3 or something different which cant have lyrics");
                             return orig_fetch.apply(this, args);
                         }
 
@@ -808,7 +804,7 @@ module.exports = {
 
                         const is_cache_expired = cached_track_data ? Lyrics_DB.is_cache_expired(cached_track_data[Lyrics_DB.INDEXES.ADDED_TIMESTAMP], cached_track_data[Lyrics_DB.INDEXES.TYPE]) : true;
                         if (!is_cache_expired) {
-                            logger.console.debug("Cached data is not expired");
+                            // logger.console.debug("Cached data is not expired");
                             if (cached_track_data[Lyrics_DB.INDEXES.TYPE] === musixmatch.TYPES.INSTRUMENTAL) {
                                 logger.console.debug("Cached song is instrumental");
                             }
@@ -833,7 +829,7 @@ module.exports = {
                             }
 
                         } else {
-                            logger.console.debug("No cached data found or expired");
+                            // logger.console.debug("No cached data found or expired");
                             if (which_deezer_lyric_type === musixmatch.TYPES.WORD_BY_WORD) {
                                 logger.console.debug("Song has word by word synced lyrics from deezer, getting nothing from musixmatch");
                                 return new Response(JSON.stringify(resp_json), {
@@ -887,7 +883,7 @@ module.exports = {
                             }
                         }
 
-                        logger.console.debug("Modified response:", resp_json);
+                        // logger.console.debug("Modified response:", resp_json);
 
                         // ===== REAL HOOK END =====
 
@@ -934,36 +930,19 @@ module.exports = {
                 dzPlayer.getCurrentSong._modified_by_lyrics_sync_plugin = true;
             }
 
-            static hook_has_lyrics(await_musixmatch_token) { // old legacy code which was outdated before the first version of this script got published so its still in here until the next update
-                const orig_has_lyrics = dzPlayer.hasLyrics;
-                dzPlayer.hasLyrics = () => {
-                    if (!Hooks.is_has_lyrics_hooked) return orig_has_lyrics();
-
-                    if (!window.fetch._modified_by_lyrics_sync_plugin) { // it reinitializes fetch sometimes, so the hook gets removed
-                        logger.console.log("Hooking fetch");
-                        this.hook_fetch(await_musixmatch_token);
-                    }
-                    return orig_has_lyrics();
-                }
-                dzPlayer.hasLyrics._modified_by_lyrics_sync_plugin = true;
-            }
-
             static toggle_hooks(enabled, ...args) {
                 for (const arg of args) {
                     switch (arg) {
                         case Hooks.HOOK_INDEXES.ALL:
                             Hooks.is_fetch_hooked = enabled;
                             Hooks.is_get_current_song_hooked = enabled;
-                            Hooks.is_has_lyrics_hooked = enabled;
+
                             return;
                         case Hooks.HOOK_INDEXES.FETCH:
                             Hooks.is_fetch_hooked = enabled;
                             break;
                         case Hooks.HOOK_INDEXES.GET_CURRENT_SONG:
                             Hooks.is_get_current_song_hooked = enabled;
-                            break;
-                        case Hooks.HOOK_INDEXES.HAS_LYRICS:
-                            Hooks.is_has_lyrics_hooked = enabled;
                             break;
                     }
                 }
@@ -978,7 +957,7 @@ module.exports = {
                     parent_div.prepend(UI.create_main_button(await_deezer_token));
                     logger.console.debug("UI created");
                 } else {
-                    logger.console.debug("Waiting for parent");
+                    // logger.console.debug("Waiting for parent");
                     const observer = new MutationObserver(mutations => {
                         for (let mutation of mutations) {
                             if (mutation.type === 'childList') {
@@ -1677,7 +1656,7 @@ module.exports = {
         }
 
         const logger = new Logger();
-        logger.console.debug("Creating All Class Instances");
+        // logger.console.debug("Creating All Class Instances");
         const config = new Config();
         const lyrics_db = new Lyrics_DB();
         const musixmatch = new Musixmatch();
@@ -1685,7 +1664,7 @@ module.exports = {
 
         (async function main() {
             const await_deezer_token = deezer.get_auth_token();
-            logger.console.log("Creating UI");
+            // logger.console.log("Creating UI");
             UI.create_ui(await_deezer_token);
 
             const await_musixmatch_token = musixmatch.retrieve_token();
@@ -1709,7 +1688,6 @@ module.exports = {
                     clearInterval(wait_for_dz_player_interval);
                     Hooks.toggle_hooks(config.config.enabled, Hooks.HOOK_INDEXES.ALL);
                     Hooks.hook_get_current_song(await_musixmatch_token);
-                    // Hooks.hook_has_lyrics(await_musixmatch_token);
                 }
             }, 100);
         })();
