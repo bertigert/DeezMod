@@ -1,0 +1,1 @@
+If it doesn't work, make sure you are at least on Deezer version ~7.0.31. Word by Word Lyrics only got added in about that version.

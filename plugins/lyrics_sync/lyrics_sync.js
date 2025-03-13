@@ -707,7 +707,6 @@ module.exports = {
                     }
                     else if (offset_regex.test(word)) {
                         offset += parseInt(word.match(offset_regex)[1]);
-                        logger.console.log("Offset:", offset);
                         continue;
                     }
                     const [start_minutes, start_seconds, start_ms, end_minutes, end_seconds, end_ms, word_text] = word.match(regex).slice(1).map((s, i) => (i < 6) ? parseInt(s) : s);
