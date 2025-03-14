@@ -1,6 +1,6 @@
 module.exports = {
     name: "Lyrics Sync",
-    description: "Adds support for syncinc lyrics using Musixmatch and local files",
+    description: "Musixmatch and Custom Lyrics Integration for Deezer Desktop",
     version: "1.0.3",
     author: "Bababoiiiii",
     context: ["renderer"],
@@ -15,7 +15,7 @@ module.exports = {
 
         class Logger {
             static LOG_VERY_MANY_THINGS_YES_YES = true; // set to false if you dont want the console getting spammed
-            
+
             constructor() {
                 this.log_textarea = null;
                 this.PREFIXES = Object.freeze({
@@ -118,7 +118,7 @@ module.exports = {
                 TYPE: "t"
             });
             static CACHE_EXPIRATION_TIMES = Object.freeze({
-                NO_LYRICS: 24*60*60*1000, // 1 day
+                NO_LYRICS: 48*60*60*1000, // 2 days
                 UNSYNCED_LYRICS: 30*24*60*60*1000, // 30 days
                 SYNCED_LYRICS: 90*24*60*60*1000, // 90 days
                 WORD_BY_WORD_LYRICS: 90*24*60*60*1000 // 90 days
@@ -740,7 +740,7 @@ module.exports = {
             // we use this approach to unhook to avoid unhooking hooks created after our hooks
             static is_fetch_hooked = true;
             static is_get_current_song_hooked = true;
-            
+
             static hook_fetch(await_musixmatch_token) {
                 const orig_fetch = window.fetch;
                 window.fetch = async function (...args) {
@@ -799,7 +799,7 @@ module.exports = {
                                 __typename: "Lyrics"
                             }
                         }
-                        
+
                         const current_song_isrc = dzPlayer.getCurrentSong("ISRC");
 
                         const cached_track_data = await lyrics_db.get_from_indexed_db(current_song_isrc);
@@ -829,8 +829,8 @@ module.exports = {
                             else {
                                 logger.console.debug("Cached song has no lyrics");
                             }
-
-                        } else {
+                        }
+                        else {
                             logger.console.debug("No cached data found or expired");
                             if (which_deezer_lyric_type === musixmatch.TYPES.WORD_BY_WORD) {
                                 logger.console.debug("Song has word by word synced lyrics from deezer, getting nothing from musixmatch");
@@ -843,17 +843,18 @@ module.exports = {
 
                             await await_musixmatch_token;
                             const which_musixmatch_lyric_type = await musixmatch.which_lyric_type(dzPlayer.getCurrentSong("ISRC"));
-                            
-                            if (which_musixmatch_lyric_type !== musixmatch.TYPES.NONE && which_deezer_lyric_type >= which_musixmatch_lyric_type) {
+
+                            if (which_musixmatch_lyric_type !== musixmatch.TYPES.NONE && which_deezer_lyric_type >= which_musixmatch_lyric_type) { // enum is sorted by hierarchy
                                 logger.console.debug("Deezer has equal/better lyrics than musixmatch, using them");
+                                await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE); // we save it as none, because we dont want to fetch the musixmatch track info again
                             }
                             else if (which_musixmatch_lyric_type === musixmatch.TYPES.NONE) {
                                 logger.console.debug("Song has no lyrics from musixmatch or the type is disabled");
-                                await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, which_musixmatch_lyric_type);
+                                await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE);
                             }
                             else if (which_musixmatch_lyric_type === musixmatch.TYPES.INSTRUMENTAL) {
                                 logger.console.debug("Song is instrumental according to musixmatch");
-                                await lyrics_db.save_to_indexed_db(current_song_isrc, Lyrics_DB.CACHE_TIMESTAMPS.INSTRUMENTAL, null, which_musixmatch_lyric_type);
+                                await lyrics_db.save_to_indexed_db(current_song_isrc, Lyrics_DB.CACHE_TIMESTAMPS.INSTRUMENTAL, null, musixmatch.TYPES.INSTRUMENTAL);
                             }
                             else {
                                 const [status, data] = await musixmatch.get_musixmatch_lyrics(current_song_isrc, which_musixmatch_lyric_type);
