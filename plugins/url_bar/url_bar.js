@@ -2,7 +2,7 @@ module.exports = {
     name: "URL Bar",
     description: "Adds an URL bar inside the titlebar",
     version: "1.0",
-    author: "Bababoiiiii",
+    author: "bertigert",
     context: ["main", "renderer", "titlebar"],
     scope: ["own", "main", "own"],
     func: (context) => {

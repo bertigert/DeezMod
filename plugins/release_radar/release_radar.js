@@ -2,7 +2,7 @@ module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
     version: "1.2.7",
-    author: "Bababoiiiii",
+    author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
     func: () => {

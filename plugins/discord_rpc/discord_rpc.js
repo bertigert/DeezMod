@@ -2,7 +2,7 @@ module.exports = {
     name: "Discord RPC",
     description: "Adds a game activity for discord",
     version: "1.0",
-    author: "Bababoiiiii",
+    author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
     func: () => {

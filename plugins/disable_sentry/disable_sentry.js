@@ -2,7 +2,7 @@ module.exports = {
     name: "Disable Sentry",
     description: "Disables the sending of telementry to Sentry.io",
     version: "1.0",
-    author: "Bababoiiiii",
+    author: "bertigert",
     context: ["preload"],
     scope: ["own"],
     func: () => {

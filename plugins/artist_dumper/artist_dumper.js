@@ -2,7 +2,7 @@ module.exports = {
     name: "Artist Dumper",
     description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bertigert/Deezer-Artist-Dumper",
     version: "1.4.8",
-    author: "Bababoiiiii",
+    author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
