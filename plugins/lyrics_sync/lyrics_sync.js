@@ -8,13 +8,15 @@ module.exports = {
     func: () => {
         // PLEASE NOTE:
         // this completely fucks up the dzplayer.getCurrentSong function, so that it always returns a lyrics id (if there are no lyrics, then the negative Song ID)
+        // differences between userscript and desktop plugin:
+        //   - make_request
 
         "use strict";
         const node_fetch = require("node-fetch");
         const https_agent = require("https").Agent({ keepAlive: true, maxSockets: 10 });
 
         class Logger {
-            static LOG_VERY_MANY_THINGS_YES_YES = true; // set to false if you dont want the console getting spammed
+            static LOG_VERY_MANY_THINGS_YES_YES = false; // set to false if you dont want the console getting spammed
 
             constructor() {
                 this.log_textarea = null;
@@ -361,8 +363,8 @@ module.exports = {
                 TOKEN: "https://apic.musixmatch.com/ws/1.1/token.get?app_id=android-player-v1.0&guid={0}&format=json",
                 GET_TRACK: "https://apic.musixmatch.com/ws/1.1/track.get?track_isrc={0}&usertoken={1}&app_id=android-player-v1.0&format=json",
                 UNSYNCED_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.lyrics.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json",
-                SYNCED_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.subtitle.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json&subtitle_format={2}",
-                WORD_BY_WORD_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.richsync.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json"
+                SYNCED_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.subtitle.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json&subtitle_format={2}&f_subtitle_length={3}$f_subtitle_length_max_deviation={4}",
+                WORD_BY_WORD_LYRICS: "https://apic.musixmatch.com/ws/1.1/track.richsync.get?track_isrc={0}&page_size=1&usertoken={1}&app_id=android-player-v1.0&format=json&f_richsync_length={2}&f_richsync_length_max_deviation={3}"
             });
             TYPES = Object.freeze({ // sorted by hierarchy
                 NONE: 0,
@@ -423,12 +425,12 @@ module.exports = {
             }
 
             save_token(token) {
-                if (token) config.config.musixmatch.token = token;
+                if (token) config.musixmatch.token = token;
             }
             async retrieve_token(called_from_renew=false) {
                 if (!called_from_renew) {
                     logger.console.debug("Getting musixmatch token from cache");
-                    const token = config.config.musixmatch.token;
+                    const token = config.musixmatch.token;
                     if (token) {
                         this.token = token;
                         return token;
@@ -437,7 +439,7 @@ module.exports = {
                 logger.console.debug("No token found in cache/skipped cache, getting new token");
 
                 // const url = `https://apic.musixmatch.com/ws/1.1/token.get?adv_id=${generate_uuid()}&referral=utm_source%3Dgoogle-play%26utm_medium%3Dorganic&root=1&sideloaded=1&app_id=android-player-v1.0&build_number=2024020802&guid=${generate_hex_64bit()}&lang=de_DE&model=manufacturer%2Fsamsung+brand%2Fsamsung+model%2FSM-G955N&format=json`;
-                const url = `https://apic.musixmatch.com/ws/1.1/token.get?app_id=android-player-v1.0&guid=${generate_hex_64bit()}&format=json`
+                const url = Musixmatch._parse_url(this.URLS.TOKEN, generate_hex_64bit());
 
                 const [status, data] = await this.make_request(url);
 
@@ -492,13 +494,13 @@ module.exports = {
                     if (data.message.body.track.instrumental === 1) {
                         return this.TYPES.INSTRUMENTAL;
                     }
-                    if (data.message.body.track.has_richsync && config.config.musixmatch.types.word_by_word) {
+                    if (data.message.body.track.has_richsync && config.musixmatch.types.word_by_word) {
                         return this.TYPES.WORD_BY_WORD;
                     }
-                    if (data.message.body.track.has_subtitles && config.config.musixmatch.types.synced) {
+                    if (data.message.body.track.has_subtitles && config.musixmatch.types.synced) {
                         return this.TYPES.SYNCED;
                     }
-                    if (data.message.body.track.has_lyrics && config.config.musixmatch.types.unsynced) {
+                    if (data.message.body.track.has_lyrics && config.musixmatch.types.unsynced) {
                         return this.TYPES.UNSYNCED;
                     }
                 }
@@ -511,18 +513,21 @@ module.exports = {
                     return [this.RESPONSES.NOT_FOUND, null];
                 }
 
-                if (!config.config.musixmatch.enabled) {
+                if (!config.musixmatch.enabled) {
                     logger.console.debug("Getting Lyrics from musixmatch is disabled");
                     return [this.RESPONSES.NOT_FOUND, null];
                 }
 
+                const song_duration = Math.floor(dzPlayer.duration);
+                const max_deviation = 10; // 5 seconds
+
                 const do_request = async (url_template) => {
                     logger.console.debug(`Getting data for track ${track_isrc}`);
-                    const [status, data] = await this.make_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format));
+                    const [status, data] = await this.make_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format, song_duration, max_deviation));
                     if (status === this.RESPONSES.INVALID_TOKEN) {
                         const has_new_token = await this.renew_token();
                         if (has_new_token) {
-                            return await do_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format));
+                            return await do_request(Musixmatch._parse_url(url_template, track_isrc, this.token, format, song_duration, max_deviation));
                         }
                         logger.console.error("Failed to get new token, stopping script");
                         Hooks.toggle_hooks(false, Hooks.HOOK_INDEXES.ALL); // if we can't get a new token, we just stop this script this session basically
@@ -733,8 +738,7 @@ module.exports = {
             static HOOK_INDEXES = Object.freeze({
                 FETCH: 0,
                 GET_CURRENT_SONG: 1,
-                HAS_LYRICS: 2,
-                ALL: 3
+                ALL: 2
             });
 
             // we use this approach to unhook to avoid unhooking hooks created after our hooks
@@ -1161,32 +1165,32 @@ module.exports = {
 
 
                 const [enabled_checkbox_label, enabled_checkbox] = this._Element_Factory.create_checkbox("Enabled", "Enable or disable this plugin.", 1);
-                enabled_checkbox.checked = config.config.enabled;
+                enabled_checkbox.checked = config.enabled;
                 enabled_checkbox.onchange = () => {
-                    config.config.enabled = enabled_checkbox.checked;
-                    Hooks.toggle_hooks(config.config.enabled, Hooks.HOOK_INDEXES.ALL);
+                    config.enabled = enabled_checkbox.checked;
+                    Hooks.toggle_hooks(config.enabled, Hooks.HOOK_INDEXES.ALL);
                 }
 
                 const [musixmatch_enabled_label, musixmatch_enabled_checkbox] = this._Element_Factory.create_checkbox("Only Cached/Custom","Disable all communication to musixmatch and only use already cached or custom lyrics.", 2);
-                musixmatch_enabled_checkbox.checked = !config.config.musixmatch.enabled;
+                musixmatch_enabled_checkbox.checked = !config.musixmatch.enabled;
                 musixmatch_enabled_checkbox.onchange = () => {
-                    config.config.musixmatch.enabled = !musixmatch_enabled_checkbox.checked;
+                    config.musixmatch.enabled = !musixmatch_enabled_checkbox.checked;
                 }
 
                 const [word_by_word_enabled_label, word_by_word_enabled_checkbox] = this._Element_Factory.create_checkbox("Word", "Enable or disable word by word lyrics from musixmatch.", 1);
-                word_by_word_enabled_checkbox.checked = config.config.musixmatch.types.word_by_word;
+                word_by_word_enabled_checkbox.checked = config.musixmatch.types.word_by_word;
                 word_by_word_enabled_checkbox.onchange = () => {
-                    config.config.musixmatch.types.word_by_word = word_by_word_enabled_checkbox.checked;
+                    config.musixmatch.types.word_by_word = word_by_word_enabled_checkbox.checked;
                 }
                 const [synced_enabled_label, synced_enabled_checkbox] = this._Element_Factory.create_checkbox("Line", "Enable or disable synced (line by line) lyrics from musixmatch.", 1);
-                synced_enabled_checkbox.checked = config.config.musixmatch.types.synced;
+                synced_enabled_checkbox.checked = config.musixmatch.types.synced;
                 synced_enabled_checkbox.onchange = () => {
-                    config.config.musixmatch.types.synced = synced_enabled_checkbox.checked;
+                    config.musixmatch.types.synced = synced_enabled_checkbox.checked;
                 }
                 const [unsynced_enabled_label, unsynced_enabled_checkbox] = this._Element_Factory.create_checkbox("Unsynced", "Enable or disable unsynced lyrics from musixmatch.", 1);
-                unsynced_enabled_checkbox.checked = config.config.musixmatch.types.unsynced;
+                unsynced_enabled_checkbox.checked = config.musixmatch.types.unsynced;
                 unsynced_enabled_checkbox.onchange = () => {
-                    config.config.musixmatch.types.unsynced = unsynced_enabled_checkbox.checked;
+                    config.musixmatch.types.unsynced = unsynced_enabled_checkbox.checked;
                 }
 
                 const lyrics_textarea = this._Element_Factory.create_textarea("Lyrics", "Type in the lyrics here. Synced lyrics must use the LRC format without a title. Word by Word lyrics must use the custom lrc format for this script.", 3);
@@ -1351,7 +1355,7 @@ module.exports = {
                             return;
                         }
 
-                        if (config.config.export_to_clipboard_or_file === "clipboard") {
+                        if (config.export_to_clipboard_or_file === "clipboard") {
                             logger.ui.info("Copying lyrics to clipboard");
                             navigator.clipboard.writeText(to_export);
                         } else {
@@ -1362,9 +1366,9 @@ module.exports = {
                 }
 
                 const [export_to_clipboard_label, export_to_clipboard_checkbox] = this._Element_Factory.create_checkbox("Clipboard", "If checked, the export button copies the lyrics to your clipboard, otherwise it downloads them.", 1);
-                export_to_clipboard_checkbox.checked = config.config.export_to_clipboard_or_file === "clipboard";
+                export_to_clipboard_checkbox.checked = config.export_to_clipboard_or_file === "clipboard";
                 export_to_clipboard_checkbox.onchange = () => {
-                    config.config.export_to_clipboard_or_file = export_to_clipboard_checkbox.checked ? "clipboard" : "file";
+                    config.export_to_clipboard_or_file = export_to_clipboard_checkbox.checked ? "clipboard" : "file";
                 }
 
                 const delete_cache_button = this._Element_Factory.create_button("Invalidate", "Clear the cache of the current song. This will delete custom lyrics.", 1);
@@ -1391,6 +1395,75 @@ module.exports = {
                 log_textarea.style.gridColumn = "span 3";
                 logger.log_textarea = log_textarea;
 
+                const forced_background_color_input = this._Element_Factory.create_input("Background", "Always use the same background color for every lyric. Useful for those incredibly bright backgrounds.", 1);
+                forced_background_color_input.value = config.style.forced_background_color;
+                forced_background_color_input.onchange = (e, selected_preset) => {
+                    if (!forced_background_color_input.value) document.querySelector("#page_player").style.setProperty("--lyrics-sync-forced-background-color", "inherit");
+                    else document.querySelector("#page_player").style.setProperty("--lyrics-sync-forced-background-color", forced_background_color_input.value);
+                    config.style.forced_background_color = forced_background_color_input.value;
+                    if (selected_preset !== undefined) {
+                        forced_color_presets_dropdown.selectedIndex = selected_preset;
+                        config.style.selected_preset = selected_preset;
+                    } else {
+                        forced_color_presets_dropdown.selectedIndex = 0;
+                        config.style.selected_preset = 0;
+                    }
+                }
+                const forced_font_color_input = this._Element_Factory.create_input("Font", "Always use the same font color for every lyric. Use when setting a forced background as Deezer doesn't adjust the font color on its own.", 1);
+                forced_font_color_input.value = config.style.forced_font_color;
+                forced_font_color_input.onchange = (e, selected_preset) => {
+                    if (!forced_font_color_input.value) document.querySelector("#page_player").style.setProperty("--lyrics-sync-forced-font-color", "inherit");
+                    else document.querySelector("#page_player").style.setProperty("--lyrics-sync-forced-font-color", forced_font_color_input.value);
+                    config.style.forced_font_color = forced_font_color_input.value;
+                    if (selected_preset !== undefined) {
+                        forced_color_presets_dropdown.selectedIndex = selected_preset;
+                        config.style.selected_preset = selected_preset;
+                    } else {
+                        forced_color_presets_dropdown.selectedIndex = 0;
+                        config.style.selected_preset = 0;
+                    }
+                }
+                const forced_color_presets_dropdown = this._Element_Factory.create_dropdown(
+                    ["Custom"].concat(config.style.custom_presets.map(p => p[0])), 
+                    "Select a preset for the forced background and font color.", 1
+                )
+                forced_color_presets_dropdown.selectedIndex = config.style.selected_preset;
+                forced_color_presets_dropdown.onchange = () => {
+                    if (forced_color_presets_dropdown.selectedIndex !== 0) {
+                        forced_font_color_input.value = config.style.custom_presets[forced_color_presets_dropdown.selectedIndex-1][1];
+                        forced_background_color_input.value = config.style.custom_presets[forced_color_presets_dropdown.selectedIndex-1][2];
+                        forced_font_color_input.onchange(null, forced_color_presets_dropdown.selectedIndex);
+                        forced_background_color_input.onchange(null, forced_color_presets_dropdown.selectedIndex);
+                    }
+                    config.style.selected_preset = forced_color_presets_dropdown.selectedIndex;
+                }
+                const preset_name_input = this._Element_Factory.create_input("Preset Name", "Name of the custom preset", 1);
+                const save_preset_button = this._Element_Factory.create_button("Save", "Save the current forced background and font color as a preset.", 1);
+                save_preset_button.onclick = () => {
+                    logger.ui.clear()
+                    if (!preset_name_input.value) {
+                        logger.ui.warn("Preset name is empty");
+                        return;
+                    }
+                    config.style.custom_presets.push([preset_name_input.value, forced_font_color_input.value, forced_background_color_input.value]);
+                    forced_color_presets_dropdown.appendChild(new Option(preset_name_input.value));
+                    forced_color_presets_dropdown.selectedIndex = forced_color_presets_dropdown.options.length-1;
+                    config.style.selected_preset = forced_color_presets_dropdown.selectedIndex;
+                }
+                const delete_preset_button = this._Element_Factory.create_button("Delete", "Delete the selected preset.", 1);
+                delete_preset_button.onclick = () => {
+                    logger.ui.clear();
+                    if (forced_color_presets_dropdown.selectedIndex === 0) {
+                        logger.ui.warn("No preset selected");
+                        return;
+                    }
+                    config.style.custom_presets.splice(forced_color_presets_dropdown.selectedIndex-1, 1);
+                    forced_color_presets_dropdown.remove(forced_color_presets_dropdown.selectedIndex);
+                    forced_color_presets_dropdown.selectedIndex = 0;
+                    config.style.selected_preset = 0;
+                }
+
+                
                 const drop_zone_div = document.createElement("div");
                 drop_zone_div.className = "lyrics_sync_drop_zone lyrics_sync_hidden";
                 drop_zone_div.textContent = "Drop Lyric Files Here";
@@ -1409,7 +1482,7 @@ module.exports = {
                     e.preventDefault();
                 }
 
-                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, word_by_word_enabled_label, synced_enabled_label, unsynced_enabled_label, lyrics_textarea, isrc_input, type_dropdown, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, song_info_container_div, export_to_clipboard_label, export_lyrics_button, delete_cache_button, log_textarea, drop_zone_div);
+                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, word_by_word_enabled_label, synced_enabled_label, unsynced_enabled_label, lyrics_textarea, isrc_input, type_dropdown, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, song_info_container_div, export_to_clipboard_label, export_lyrics_button, delete_cache_button, this._Element_Factory.create_border_div(), forced_background_color_input, forced_font_color_input, forced_color_presets_dropdown, preset_name_input, save_preset_button, delete_preset_button, log_textarea, drop_zone_div);
                 return container;
             }
 
@@ -1464,8 +1537,8 @@ module.exports = {
                     }
 
                     div.lyrics_sync_custom_lyrics_container {
-                        width: 300px;
-                        max-height: 550px;
+                        width: 320px;
+                        max-height: 475px;
                         position: absolute;
                         bottom: 0;
                         right: 0;
@@ -1611,6 +1684,24 @@ module.exports = {
                     div.lyrics_sync_custom_lyrics_container div.lyrics_sync_song_info_container > button {
                         font-size: 14px;
                     }
+                    
+
+                    #page_player {
+                        --lyrics-sync-forced-background-color: ${config.style.forced_background_color || "inherit"};
+                        --lyrics-sync-forced-font-color: ${config.style.forced_font_color || "inherit"};
+                    }
+                    #page_player > div.player-lyrics-full > div > div:nth-child(1) {
+                        margin-top: 0px !important;
+                    }
+                    #page_player > div.player-lyrics-full > div > div {
+                        background-color: var(--lyrics-sync-forced-background-color) !important;
+                    }
+                    #page_player > div.player-lyrics-full > div > div * {
+                        color: var(--lyrics-sync-forced-font-color) !important;
+                    }
+                    #page_player > div.player-lyrics-full > div > div circle.chakra-progress__indicator {
+                        stroke: var(--lyrics-sync-forced-font-color) !important;
+                    }
                 `;
                 const style = document.createElement("style");
                 style.type = "text/css";
@@ -1618,12 +1709,46 @@ module.exports = {
                 document.querySelector("head").appendChild(style);
             }
         }
-
+        
         class Config {
-            constructor() {
-                this.config = this.setter_proxy(this.retrieve());
-            }
+            static CURRENT_CONFIG_VERSION = 0;
 
+            StringConfig = class {
+                // functions to traverse and edit a json based on string paths
+                static get_value(obj, path) {
+                    return path.split(".").reduce((acc, key) => acc && acc[key], obj);
+                }
+                static set_key(obj, path, value) {
+                    let current = obj;
+                    const keys = path.split(".");
+                    keys.slice(0, -1).forEach(key => {
+                        current[key] = current[key] ?? (/^\d+$/.test(key) ? [] : {});
+                        current = current[key];
+                    });
+                    current[keys[keys.length - 1]] = value;
+                }
+                static delete_key(obj, path) {
+                    let current = obj;
+                    const keys = path.split(".");
+                    keys.slice(0, -1).forEach(key => {
+                        if (!current[key]) return;
+                        current = current[key];
+                    });
+                    delete current[keys[keys.length - 1]];
+                }
+                static move_key(obj, from, to) {
+                    const value = this.get_value(obj, from);
+                    if (value !== undefined) {
+                        this.set_key(obj, to, value);
+                        this.delete_key(obj, from);
+                    }
+                }
+            }
+    
+            constructor() {
+                this.config = this.setter_proxy(this.get());
+            }
+            
             retrieve() {
                 return JSON.parse(localStorage.getItem("lyrics_sync_config")) || {
                     enabled: true,
@@ -1636,13 +1761,34 @@ module.exports = {
                             synced: true,
                             unsynced: true
                         }
+                    },
+                    style: {
+                        forced_background_color: "",
+                        forced_font_color: "",
+                        selected_preset: 0, // 0 = custom, >1 = preset
+                        custom_presets: [
+                            ["Mimic Deezer", "var(--tempo-colors-text-neutral-primary-default)", "var(--tempo-colors-background-neutral-primary-default)"],
+                            ["Mimic Deezer 2", "var(--tempo-colors-text-neutral-secondary-default)", "var(--tempo-colors-background-neutral-secondary-default)"],
+                            ["White on Black", "#FFFFFF", "#000000"],
+                            ["Black on White", "#000000", "#FFFFFF"]
+                        ]
                     }
+
                 };
             }
+            
+            get() {
+                const config = this.retrieve();
+                if (config.config_version !== Config.CURRENT_CONFIG_VERSION) {
+                    return this.migrate_config(config);
+                }
+                return config;
+            }
+
             save() {
                 localStorage.setItem("lyrics_sync_config", JSON.stringify(this.config));
             }
-
+            
             setter_proxy(obj) {
                 return new Proxy(obj, {
                     set: (target, key, value) => {
@@ -1659,11 +1805,55 @@ module.exports = {
                 });
             }
 
+            migrate_config(config) {
+                // patch structure
+                // [from, to, ?value]
+                    // if both "from" and "to" exist, we change the path from "from" to "to"
+                    // if "from" is null, "value" is required as we create/update the key and set the value to "value"
+                    // if "to" is null, we delete the key
+                const patches = [
+                    [
+                        [null, "config_version", Config.CURRENT_CONFIG_VERSION],
+                        [null, "style", {
+                            forced_background_color: "",
+                            forced_font_color: "",
+                            selected_preset: 0,
+                            custom_presets: [
+                                ["Mimic Deezer", "var(--tempo-colors-text-neutral-primary-default)", "var(--tempo-colors-background-neutral-primary-default)"],
+                                ["Mimic Deezer 2", "var(--tempo-colors-text-neutral-secondary-default)", "var(--tempo-colors-background-neutral-secondary-default)"],
+                                ["White on Black", "#FFFFFF", "#000000"],
+                                ["Black on White", "#000000", "#FFFFFF"]
+                            ]
+                        }]
+                    ]
+                ]
+    
+                const old_cfg_version = config.config_version === undefined ? -1 : config.config_version;
+                for (let patch = old_cfg_version+1; patch <= Config.CURRENT_CONFIG_VERSION; patch++) {
+                    if (patch !== 0) { // we add the config_version key in the first patch
+                        config.config_version++;
+                    }
+                    patches[patch].forEach(([from, to, value]) => {
+                        if (from && to) {
+                            this.StringConfig.move_key(config, from, to);
+                        }
+                        else if (!from && to) {
+                            this.StringConfig.set_key(config, to, value);
+                        }
+                        else if (from && !to) {
+                            this.StringConfig.delete_key(config, from);
+                        }
+                    });
+                    logger.console.debug("Migrated to version", patch);
+                }
+                logger.console.log("Migrated config to version", Config.CURRENT_CONFIG_VERSION);
+                return config;
+            }
         }
 
         const logger = new Logger();
         logger.console.debug("Creating All Class Instances");
-        const config = new Config();
+        const config = new Config().config;
         const lyrics_db = new Lyrics_DB();
         const musixmatch = new Musixmatch();
         const deezer = new Deezer();
@@ -1675,24 +1865,25 @@ module.exports = {
 
             const await_musixmatch_token = musixmatch.retrieve_token();
 
-            const db_stats = await lyrics_db.get_full_size()
-            logger.console.log(`
-            Cache stats:
-            ------------
-            Total size: ${format_bytes(db_stats.total_size)}
-            Total size of entries with lyrics: ${format_bytes(db_stats.total_size_ignoring_null)}
-            Average size: ${format_bytes(db_stats.avg_size)}
-            Average size with lyrics: ${format_bytes(db_stats.avg_size_ignoring_null)}
-            Entry count: ${db_stats.entry_count}
-            Entry count with lyrics: ${db_stats.entry_count_ignoring_null}
-            `);
-
+            if (Logger.LOG_VERY_MANY_THINGS_YES_YES) {
+                const db_stats = await lyrics_db.get_full_size()
+                logger.console.log(`
+                Cache stats:
+                ------------
+                Total size: ${format_bytes(db_stats.total_size)}
+                Total size of entries with lyrics: ${format_bytes(db_stats.total_size_ignoring_null)}
+                Average size: ${format_bytes(db_stats.avg_size)}
+                Average size with lyrics: ${format_bytes(db_stats.avg_size_ignoring_null)}
+                Entry count: ${db_stats.entry_count}
+                Entry count with lyrics: ${db_stats.entry_count_ignoring_null}
+                `);
+            }
 
             logger.console.log("Hooking dzplayer.getCurrentSong");
             const wait_for_dz_player_interval = setInterval(() => {
                 if (window.dzPlayer) {
                     clearInterval(wait_for_dz_player_interval);
-                    Hooks.toggle_hooks(config.config.enabled, Hooks.HOOK_INDEXES.ALL);
+                    Hooks.toggle_hooks(config.enabled, Hooks.HOOK_INDEXES.ALL);
                     Hooks.hook_get_current_song(await_musixmatch_token);
                 }
             }, 100);
