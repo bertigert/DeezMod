@@ -68,9 +68,9 @@ module.exports = {
             let r_to_be_returned = r.clone();
 
             const resp = await r.json();
-            
+
             if (resp.error?.VALID_TOKEN_REQUIRED) {
-                if (!user_data.currently_renewing_api_token) { 
+                if (!user_data.currently_renewing_api_token) {
                     user_data.currently_renewing_api_token = (async () => {
                         log("API Token invalid, renewing");
                         const user_data_tmp = await get_user_data();
@@ -87,7 +87,7 @@ module.exports = {
                 }
 
                 r_to_be_returned = safe_fetch(url, ...args);
-            
+
             } else {
                 if (first_safe_fetch_call) { // if the token was valid, we can let the other requests go through
                     wait_for_first_call_resolver();
@@ -268,7 +268,7 @@ module.exports = {
                             };
 
                             // stop requesting songs if the song is older than the age limit...
-                            
+
                             if ( ( (config.limits.max_song_age < 0 && cache[user_data.user_id].last_checked > 0) && new_release.release_date < cache[user_data.user_id].last_checked) || (config.limits.max_song_age >= 0 && current_time - new_release.release_date > 1000*60*60*24*config.limits.max_song_age) ) {
                                 debug("Release was too old", new_release.id);
                                 next_page = null;
@@ -423,7 +423,7 @@ module.exports = {
                 });
                 await Promise.all(promises);
             }
-            
+
             for (let i = 0; i < new_releases.length; i += config.parallelism.batch_size) {
                 const batch = new_releases.slice(i, i + config.parallelism.batch_size);
                 await process_batch(batch);
@@ -523,7 +523,7 @@ module.exports = {
         }
 
         function migrate_config(config, CURRENT_CONFIG_VERSION) {
-            
+
             // patch structure
             // [from, to, ?value]
                 // if both "from" and "to" exist, we change the path from "from" to "to"
@@ -872,7 +872,7 @@ module.exports = {
         .release_radar_main_div_header_div > div > label > textarea::-webkit-scrollbar {
             height: 10px;
         }
-        
+
         .release_radar_main_div_header_div > div > label > *:hover {
             background-color: var(--tempo-colors-background-neutral-tertiary-hovered);
         }
@@ -1320,12 +1320,12 @@ module.exports = {
                 upcoming_releases_lis = upcoming_releases.map(r => create_release_li(r))
                 const upcoming_releases_details = document.createElement("details");
                 upcoming_releases_details.className = "release_radar_upcoming_releases_details";
-    
+
                 const upcoming_releases_details_summary = document.createElement("summary");
                 upcoming_releases_details_summary.textContent = upcoming_releases.length+pluralize(" Upcoming Release", upcoming_releases.length);
-                
+
                 upcoming_releases_details.append(upcoming_releases_details_summary, ...upcoming_releases_lis);
-                
+
                 if (config.types.upcoming_releases === 0) { // normal
                     upcoming_releases_details_summary.classList.add("hide");
                     upcoming_releases_details.open = true;
@@ -1333,7 +1333,7 @@ module.exports = {
                 else if (config.types.upcoming_releases === 2) { // hide
                     upcoming_releases_details.classList.add("hide");
                 }
-                
+
                 releases_to_be_returned.push(upcoming_releases_details);
             }
 
@@ -1366,7 +1366,7 @@ module.exports = {
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 }
-                
+
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1383,7 +1383,7 @@ module.exports = {
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 }
-                
+
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1398,7 +1398,7 @@ module.exports = {
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 };
-                
+
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1428,7 +1428,7 @@ module.exports = {
                 const setting_input = document.createElement("button");
                 setting_input.textContent = text;
                 setting_input.onclick = () => {on_click(setting_input)};
-                
+
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1480,11 +1480,11 @@ module.exports = {
                     all_releases[i].classList.toggle("hide", is_release_filtered(release));
                 });
 
-                 // if all the upcoming releases are filtered out, hide the details element
+                // if all the upcoming releases are filtered out, hide the details element
                 const upcoming_releases_details = main_div.querySelector("details");
                 upcoming_releases_details?.classList.toggle("hide", upcoming_releases_details && !upcoming_releases_details.querySelector("li:not(.hide)"));
             }
-            
+
             const settings_wrapper = document.createElement("div");
             settings_wrapper.className = "release_radar_settings_wrapper_div hide";
 
@@ -1533,7 +1533,7 @@ module.exports = {
                 )).dropdown_setting(["Normal", "Separate", "Hide"], (selected_index) => {
                     const upcoming_releases_details = document.querySelector("div.release_radar_main_div > details");
                     const upcoming_releases_details_summary = upcoming_releases_details.querySelector("summary");
-                    
+
                     // 0 = normal, 1 = seperate, 2 = hide
                     upcoming_releases_details.open = selected_index === 0;
                     upcoming_releases_details_summary.classList.toggle("hide", selected_index !== 1);
@@ -1563,7 +1563,7 @@ module.exports = {
                     main_div.querySelectorAll("a").forEach(a => a.href = a.href.replace(checked ? "https" : "deezer", checked ? "deezer" : "https"));
                 })
             );
-            
+
             settings_wrapper.appendChild(
                 (new Setting(
                     "Max. Songs",
@@ -1790,8 +1790,6 @@ module.exports = {
             user_data.session_id = user_data_tmp.results.SESSION_ID;
             user_data.user_token = user_data_tmp.results.USER_TOKEN;
             user_data.license_token = user_data_tmp.results.USER.OPTIONS.license_token;
-
-            log(user_data);
 
             cache = get_cache();
             if (!cache.has_seen) cache.has_seen = {}
