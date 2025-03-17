@@ -1696,7 +1696,9 @@ module.exports = {
                     #page_player > div.player-lyrics-full > div > div {
                         background-color: var(--lyrics-sync-forced-background-color) !important;
                     }
-                    #page_player > div.player-lyrics-full > div > div * {
+                    #page_player > div.player-lyrics-full > div > div span,
+                    #page_player > div.player-lyrics-full > div > div p:where(:not(span)),
+                    #page_player > div.player-lyrics-full > div > div button {
                         color: var(--lyrics-sync-forced-font-color) !important;
                     }
                     #page_player > div.player-lyrics-full > div > div circle.chakra-progress__indicator {
