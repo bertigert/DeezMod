@@ -1,8 +1,8 @@
 module.exports = {
     name: "List All Releases",
     description: "Lists ALL releases at the artist page, not just hand picked ones by deezer.",
-    version: "1.0.0",
-    author: "Bababoiiiii",
+    version: "1.0.1",
+    author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
@@ -53,19 +53,20 @@ module.exports = {
                 try {
                     if (args[0] !== "https://pipe.deezer.com/api" ||
                         args[1].method !== "POST" ||
+                        typeof args[1].body !== "string" ||
                         // check if the 2nd trace (after filtering out traces which were made using window.fetch (deezers script dont do that, so they must be user made and we ignore that) is in the web-app script (thats the way normal deezer scripts fetch data)
                         !(new Error()).stack.split("\n").filter(l=>!l.includes("window.fetch"))[1]?.includes("app-web")
                     ) {
                         return orig_fetch.apply(window, args);
                     }
-                    
+
                     const operation_name = args[1].body.match(/"operationName":\s*"(.*?)"/);
                     if (operation_name && operation_name[1] === "ArtistDiscographyByType") {
                         debug('Catched original artist page fetch call');
                         args[1].body = args[1].body.replace(/"subType":\s*"(.*?)"/, '"subType": null')
                                                     .replace(/"mode":\s*"(.*?)"/, '"mode": "ALL"');
                     }
-                        
+
                     return orig_fetch.apply(window, args);
                 } catch (e) {
                     error("Error in fetch hook:", e);
