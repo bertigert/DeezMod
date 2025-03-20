@@ -41,9 +41,7 @@ module.exports = {
                     url.searchParams.get("method") !== "deezer.getUserData" ||
                     url.searchParams.get("api_token") !== "" ||
                     !url.searchParams.has("cid") ||
-                    typeof args[1].body !== "string" ||
-                    // check if the 2nd trace (after filtering out traces which were made using window.fetch (deezers script dont do that, so they must be user made and we ignore that) is in the web-app script (thats the way normal deezer scripts fetch data)
-                    !(new Error()).stack.split("\n").filter(l=>!l.includes("window.fetch"))[1]?.includes("app-web")
+                    typeof args[1].body !== "string"
                 ) {
                     return original_fetch.apply(window, args);
                 }
