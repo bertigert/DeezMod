@@ -1,19 +1,19 @@
 module.exports = {
     name: "Toggle Features",
     description: "Enable or disable features which may or may not be experimental/web version only.",
-    version: "1.0",
+    version: "1.0.1",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
         // ======= Settings START =======
+        "use strict";
         
-        LOG_ALL_FEATURES_DEBUG = true; // useful to see all features (gets logged in the (dev tools) console, use https://github.com/bertigert/DeezMod/blob/main/plugins/enable_dev_mode.js to view)
+        const LOG_ALL_FEATURES_DEBUG = true; // useful to see all features (gets logged in the (dev tools) console, use https://github.com/bertigert/DeezMod/blob/main/plugins/enable_dev_mode.js to view)
 
-        CUSTOM_FEATURES = {
-            gapless_playback: true,
-            // revamp_best_results: true,
-            // deeztools: true, // simple way to toggle most of the custom features
+        const CUSTOM_FEATURES = {
+            // gapless_playback: true,
+            deeztools: true, // simple way to toggle most of the custom features
         }
 
         // ======= Settings END =======
