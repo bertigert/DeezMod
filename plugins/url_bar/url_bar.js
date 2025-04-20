@@ -20,13 +20,11 @@ module.exports = {
             let renderer_ipc = null, titlebar_ipc = null;
             
             ipcMain.on("renderer-ready", (event) => {
-                titlebar_ready = true;
                 log("Renderer ready");
                 renderer_ipc = event.sender;
             });
             
             ipcMain.on("titlebar-ready", (event) => {
-                titlebar_ready = true;
                 log("Titlebar ready");
                 titlebar_ipc = event.sender;
             });
