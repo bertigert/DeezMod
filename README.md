@@ -33,6 +33,6 @@ Place plugins inside of `%localappdata%\Programs\deezer-desktop\plugins`. They n
 Userscripts can be pretty easily ported to the desktop app if they are not too reliant on the functions of the userscript managers.\
 See example plugins [here](https://github.com/bertigert/DeezMod/tree/main/plugins)
 
-## Latest officially supported version
-`7.0.31`
+## Latest supported version
+`7.0.60`
 > For version 6.*, use release v1.0.22a.
