@@ -7,6 +7,9 @@ Plugins are scripts which allow you to add custom functionality to Deezer. To in
 ### Artist Dumper
 Allows you to add all songs by an artist to a playlist or an already existing one. Highly configurable. Port of [this](https://github.com/bertigert/Deezer-Release-Radar) userscript.
 
+### Autofocus Main Window
+Automatically focuses the main window whenever you enter the application. This allows you to, for example, always use the hotkeys when tabbing into the application, removing the need to click into it.
+
 ### DevMode
 Enables DevMode which enables DevTool (ctrl+shift+i).
 
