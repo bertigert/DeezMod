@@ -280,7 +280,7 @@ module.exports = {
                 min_length: 60,
                 regexes: [
                     {
-                        str: String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`, // https://regex101.com/r/xlxhY7/1
+                        str: String.raw`[([-] *((super|over|ultra) )?((slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`, // https://regex101.com/r/QHwSbu/1
                         flags: "i",
                         type: 0, // 0 = blacklist, 1 = whitelist
                         for_artist: "-1", // -1 = every artist, any other number is artist id

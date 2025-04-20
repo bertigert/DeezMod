@@ -535,8 +535,8 @@ module.exports = {
                     [null, "compact_mode", false],
                     [null, "filters", {
                         "contributor_id": ["5080"],
-                        "release_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
-                        "song_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                        "release_name": [String.raw`[([-] *((super|over|ultra) )?((slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                        "song_name": [String.raw`[([-] *((super|over|ultra) )?((slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
                     }],
                     [null, "types", {
                         singles: true,
@@ -609,8 +609,8 @@ module.exports = {
                 },
                 filters: {
                     "contributor_id": ["5080"], // 5080 = Various Artists
-                    "release_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
-                    "song_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
+                    "release_name": [String.raw`[([-] *((super|over|ultra) )?((slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                    "song_name": [String.raw`[([-] *((super|over|ultra) )?((slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
                 },
                 types: {
                     singles: true,
