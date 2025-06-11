@@ -190,6 +190,13 @@ class IPCTransport extends Transport_1.Transport {
             this.socket = undefined;
             this.emit("close", "Closed by Discord");
         });
+        this.socket.on("error", (err) => {
+            if (err.code === "EPIPE") {
+                console.error("IPC Transport Error: EPIPE - The connection was closed by the server.");
+                return;
+            }
+            this.emit("error", err);
+        });
     }
     send(message, op = IPC_OPCODE.FRAME) {
         this.client.emit("debug", `CLIENT => SERVER | OPCODE.${IPC_OPCODE[op]} |`, message);
