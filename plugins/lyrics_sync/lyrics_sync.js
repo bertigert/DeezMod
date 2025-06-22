@@ -1587,7 +1587,8 @@ module.exports = {
                         background: var(--tempo-colors-background-neutral-tertiary-hovered);
                         color: var(--tempo-colors-text-neutral-primary-hovered);
                     }
-                    button.lyrics_sync_custom_lyrics.active {
+                    button.lyrics_sync_custom_lyrics.active,
+                    button.lyrics_sync_custom_lyrics:active {
                         color: var(--tempo-colors-icon-accent-primary-default);
                     }
                     button.lyrics_sync_custom_lyrics > svg {
