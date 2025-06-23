@@ -41,17 +41,17 @@ echo.
 echo Downloading prepacked app.asar
 echo.
 
-curl -s -L -o "%install_path%\app_patched.asar.zip" https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip
-if not exist "%install_path%\app_patched.asar.zip" (
+curl -s -L -o "%tmp%\app_patched.asar.zip" https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip
+if not exist "%tmp%\app_patched.asar.zip" (
     echo Failed to download app.asar zip
 )
 
 echo Extracting app.asar
-tar -xf "%install_path%\app_patched.asar.zip" -C "%install_path%\"
+tar -xf "%tmp%\app_patched.asar.zip" -C %install_path%\
 if errorlevel 1 (
 	echo Failed to extract app.asar zip
 )
-del "%install_path%\app_patched.asar.zip" >nul
+del "%tmp%\app_patched.asar.zip" >nul
 
 goto :create_plugins_folder
 
@@ -65,8 +65,8 @@ if not exist "%localappdata%\DeezMod\Data\plugins" (
 goto :end
 
 :end
-if exist "%install_path%\app_patched.asar.zip" (
-	del "%install_path%\app_patched.asar.zip" >nul
+if exist "%tmp%\app_patched.asar.zip" (
+	del "%tmp%\app_patched.asar.zip" >nul
 )
 
 set "install_path="
