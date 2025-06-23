@@ -4,7 +4,7 @@ Creating plugins is not streamlined at all. This injection method is more a way 
 ## Plugin location
 (Windows) Plugins are located at 
 ```
-%localappdata%\Programs\deezer-desktop\plugins
+%localappdata%\DeezMod\Data\plugins
 ```
 
 ## Plugin structure
