@@ -112,10 +112,13 @@ module.exports = {
 
         let currently_reconnecting = false;
         function reconnect_to_rpc(delay=2000) {
+            if (currently_reconnecting) return;
             let attempts = 0;
             const retry = () => {
                 debug(`Trying to reconnect to RPC, attempt ${++attempts} (next attempt in ${delay / 1000}s)`);
-        
+                rpc_client.destroy().catch(e => {
+                    debug("Failed to destroy rpc client, continuing with reconnecting", e);
+                });
                 rpc_client.login()
                     .then(() => {
                         debug("Reconnected to RPC!");
