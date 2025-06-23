@@ -36,5 +36,5 @@ Userscripts can be pretty easily ported to the desktop app if they are not too r
 See example plugins [here](https://github.com/bertigert/DeezMod/tree/main/plugins)
 
 ## Latest supported version
-`7.0.60`
+`7.0.100`
 > For version 6.*, use release v1.0.22a.
