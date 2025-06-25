@@ -1,7 +1,7 @@
 module.exports = {
     name: "Lyrics Sync",
     description: "Musixmatch and Custom Lyrics Integration for Deezer Desktop",
-    version: "1.0.6",
+    version: "1.0.7",
     author: "bertigert",
     context: ["renderer"],
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
@@ -747,7 +747,7 @@ module.exports = {
 
             static hook_fetch(await_musixmatch_token) {
                 const orig_fetch = window.fetch;
-                window.fetch = async function (...args) {
+                async function hooked_fetch(...args) {
                     if (!Hooks.is_fetch_hooked) return orig_fetch.apply(this, args);
 
                     try {
@@ -937,6 +937,15 @@ module.exports = {
                         return orig_fetch.apply(this, args);
                     }
                 }
+                // only change the function which gets called, not the attributes of the original fetch function
+                Object.setPrototypeOf(hooked_fetch, orig_fetch);
+                Object.getOwnPropertyNames(orig_fetch).forEach(prop => {
+                    try {
+                        hooked_fetch[prop] = orig_fetch[prop];
+                    } catch (e) {
+                    }
+                });
+                window.fetch = hooked_fetch;
                 window.fetch._modified_by_lyrics_sync_plugin = true;
             }
 
@@ -945,7 +954,7 @@ module.exports = {
                 dzPlayer.getCurrentSong = (...args) => {
                     if (!Hooks.is_get_current_song_hooked) return orig_getcurrsong.apply(dzPlayer, args);
                     if (!window.fetch._modified_by_lyrics_sync_plugin) { // it reinitializes fetch sometimes, so the hook gets removed
-                        logger.console.log("Hooking fetch");
+                        // logger.console.debug("Hooking fetch");
                         this.hook_fetch(await_musixmatch_token);
                     }
 
@@ -1484,7 +1493,7 @@ module.exports = {
                     }
                 }
                 const forced_color_presets_dropdown = this._Element_Factory.create_dropdown(
-                    ["Custom"].concat(config.style.custom_presets.map(p => p[0])), 
+                    ["Custom"].concat(config.style.custom_presets.map(p => p[0])),
                     "Select a preset for the forced background and font color.", 1
                 )
                 forced_color_presets_dropdown.selectedIndex = config.style.selected_preset;
@@ -1523,7 +1532,7 @@ module.exports = {
                     config.style.selected_preset = 0;
                 }
 
-                
+
                 const drop_zone_div = document.createElement("div");
                 drop_zone_div.className = "lyrics_sync_drop_zone lyrics_sync_hidden";
                 drop_zone_div.textContent = "Drop Lyric Files Here";
@@ -1719,7 +1728,7 @@ module.exports = {
                     div.lyrics_sync_custom_lyrics_container button.lyrics_sync_reload_button:hover {
                         transform: scale(1.2);
                     }
-                    
+
                     div.lyrics_sync_custom_lyrics_container div.lyrics_sync_song_info_container {
                         display: grid;
                         grid-template-columns: repeat(3, minmax(0, 3fr));
@@ -1739,7 +1748,7 @@ module.exports = {
                     div.lyrics_sync_custom_lyrics_container div.lyrics_sync_song_info_container > button {
                         font-size: 14px;
                     }
-                    
+
 
                     #page_player {
                         --lyrics-sync-forced-background-color: ${config.style.forced_background_color || "inherit"};
@@ -1767,7 +1776,7 @@ module.exports = {
                 document.querySelector("head").appendChild(style);
             }
         }
-        
+
         class Config {
             static CURRENT_CONFIG_VERSION = 1;
 
@@ -1802,11 +1811,11 @@ module.exports = {
                     }
                 }
             }
-    
+
             constructor() {
                 this.config = this.setter_proxy(this.get());
             }
-            
+
             retrieve() {
                 return JSON.parse(localStorage.getItem("lyrics_sync_config")) || {
                     enabled: true,
@@ -1839,7 +1848,7 @@ module.exports = {
 
                 };
             }
-            
+
             get() {
                 const config = this.retrieve();
                 if (config.config_version !== Config.CURRENT_CONFIG_VERSION) {
@@ -1851,7 +1860,7 @@ module.exports = {
             save() {
                 localStorage.setItem("lyrics_sync_config", JSON.stringify(this.config));
             }
-            
+
             setter_proxy(obj) {
                 return new Proxy(obj, {
                     set: (target, key, value) => {
