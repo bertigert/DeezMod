@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.7",
+    version: "1.2.9",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -225,6 +225,7 @@ module.exports = {
 
         async function get_new_releases(auth_token, artist_ids) {
             const new_releases = [];
+            const releases_ids = new Set();
             const current_time = Date.now();
             let current_oldest_song_which_got_added_time  = current_time;
 
@@ -274,6 +275,12 @@ module.exports = {
                                 next_page = null;
                                 break;
                             }
+
+                            if (releases_ids.has(new_release.id)) {
+                                debug("Release was already seen", new_release.id);
+                                continue;
+                            }
+                            releases_ids.add(new_release.id);
 
                             // configurable filters
                             if (is_release_filtered(new_release)) {
