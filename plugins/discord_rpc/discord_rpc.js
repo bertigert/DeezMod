@@ -111,7 +111,7 @@ module.exports = {
         }
 
         let currently_reconnecting = false;
-        function reconnect_to_rpc(delay=2000) {
+        function reconnect_to_rpc(delay=10000) {
             if (currently_reconnecting) return;
             let attempts = 0;
             const retry = () => {
@@ -127,7 +127,7 @@ module.exports = {
                     })
                     .catch(e => {
                         debug("[ERROR] Failed to authenticate to RPC");
-                        delay = Math.min(delay * 1.5, 120000); // it will retry every 2 minutes at worst
+                        delay = Math.min(delay * 1.5, 1000*60*10); // it will retry every 10 minutes at worst
                         setTimeout(retry, delay);
                     });
             };
