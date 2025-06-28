@@ -10,8 +10,8 @@ Allows you to add all songs by an artist to a playlist or an already existing on
 ### Autofocus Main Window
 Automatically focuses the main window whenever you enter the application. This allows you to, for example, always use the hotkeys when tabbing into the application, removing the need to click into it.
 
-### DevMode
-Enables DevMode which enables DevTool (ctrl+shift+i).
+### Blacklist Song
+Allows you to blacklist songs/artists from playing. Port of [this](https://github.com/bertigert/Deezer-Blacklist-Songs) userscript.
 
 ### Disable Sentry
 Disables the sending of telementry to Sentry.io.
@@ -21,6 +21,9 @@ Automatically displays your currently playing song on Discord. Inspired by https
 
 ### Display All Songs
 A script allowing you to view all releases by an artist, not just the ones deezer thinks are important. Port of [this](https://github.com/bertigert/deezer-list-all-releases/) userscript.
+
+### Enable Dev Mode
+Enables DevMode which enables DevTool (ctrl+shift+i).
 
 ### Exponential Volume
 Changes the volume control to increase exponentially, allowing for more precise lower values. Probably very easy to adapt to increase the maximum volume. Port of [this](https://greasyfork.org/en/scripts/487324-youtube-volume-fixer) userscript. Note: Not tested by me.
