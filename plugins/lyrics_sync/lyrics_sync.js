@@ -1,7 +1,7 @@
 module.exports = {
     name: "Lyrics Sync",
     description: "Musixmatch and Custom Lyrics Integration for Deezer Desktop",
-    version: "1.0.8",
+    version: "1.0.9",
     author: "bertigert",
     context: ["renderer"],
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
@@ -488,6 +488,21 @@ module.exports = {
                 }
                 return [status, null];
             }
+
+            is_musixmatch_needed(deezer_lyrics_type) {
+                if (
+                    config.musixmatch.enabled &&
+                    config.musixmatch.types.word_by_word && deezer_lyrics_type < this.TYPES.WORD_BY_WORD ||
+                    config.musixmatch.types.synced && deezer_lyrics_type < this.TYPES.SYNCED ||
+                    config.musixmatch.types.unsynced && deezer_lyrics_type < this.TYPES.UNSYNCED
+                ) {
+                    logger.console.debug("Deezer has lower quality lyrics than what we want from Musixmatch and musixmatch is enabled");
+                    return true;
+                }
+                logger.console.debug("Deezer has better or equal quality lyrics than what we want from Musixmatch or musixmatch is disabled");
+                return false;
+            }
+
             async which_lyric_type(track_isrc) {
                 const [status, data] = await this.get_track(track_isrc);
                 if (status === this.RESPONSES.SUCCESS) {
@@ -868,8 +883,7 @@ module.exports = {
                         }
                         else {
                             logger.console.debug("No cached data found or expired");
-                            if (which_deezer_lyric_type === musixmatch.TYPES.WORD_BY_WORD) {
-                                logger.console.debug("Song has word by word synced lyrics from deezer, getting nothing from musixmatch");
+                            if (!musixmatch.is_musixmatch_needed(which_deezer_lyric_type)) {
                                 return new Response(JSON.stringify(resp_json), {
                                     status: response.status,
                                     statusText: response.statusText,
