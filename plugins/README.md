@@ -10,6 +10,9 @@ Allows you to add all songs by an artist to a playlist or an already existing on
 ### Autofocus Main Window
 Automatically focuses the main window whenever you enter the application. This allows you to, for example, always use the hotkeys when tabbing into the application, removing the need to click into it.
 
+### Better Title
+Syncs the title of the main window to the titlebar window, making the title visible in the taskbar and probably other places. Also allows you to set a custom title (See code).
+
 ### Blacklist Song
 Allows you to blacklist songs/artists from playing. Port of [this](https://github.com/bertigert/Deezer-Blacklist-Songs) userscript.
 
