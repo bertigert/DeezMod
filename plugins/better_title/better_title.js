@@ -52,9 +52,9 @@ module.exports = {
 
         // Invalid placeholders would be:
         // %sng_title:#10> :#...% Missing >SUFFIX, so it will not work. Valid would be: %sng_title:#10> :#...>% if you want to not append anything for the STOP_CHAR limit.
-        // %sng_title:#10:#...>% Missing >STOP_CHAR, but SUFFIX is present.
+        // %sng_title:#10:#...>% Missing >STOP_CHAR, but >SUFFIX is present.
         // %sng_title:>,#10:>...#...% >STOP_CHAR AND SUFFIX> before #MAX_LENGTH and #SUFFIX.
-        // %sng_title:#>:#>% Missing #MAX_LENGTH and #STOP_CHAR, so it will not work. Valid would be %sng_title:#10>:#>% if you want to not append anything for the MAX_LENGTH/STOP_CHAR limit.
+        // %sng_title:#>:#>% Missing #MAX_LENGTH and >STOP_CHAR, so it will not work. Valid would be %sng_title:#10> :#>% if you want to not append anything for the MAX_LENGTH/STOP_CHAR limit.
 
         // ========== SETTINGS END ==========
 
