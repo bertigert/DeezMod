@@ -171,8 +171,8 @@ module.exports = {
         function format_title() {
             const song_info = dzPlayer.getCurrentSong();
             const main_artist = song_info.ART_NAME || "";
-            const all_artists = song_info.ARTISTS.map(artist => artist.ART_NAME).join(", ") || "";
-            const artist = DISPLAY_ALL_ARTISTS ? all_artists : main_artist;
+            const all_artists = song_info.ARTISTS?.map(artist => artist.ART_NAME).join(", ") || "";
+            const artist = DISPLAY_ALL_ARTISTS && all_artists ? all_artists : main_artist;
             const song_title = song_info.SNG_TITLE || "";
             const album_title = song_info.ALB_TITLE || "";
 
