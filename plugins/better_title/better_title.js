@@ -35,7 +35,7 @@ module.exports = {
         
         // %placeholder:#MAX_LENGTH>STOP_CHAR:#MAX_LENGTH_SUFFIX>STOP_CHAR_SUFFIX%
         // #MAX_LENGTH limits the length of the placeholder to MAX_LENGTH characters.
-        // If the value is longer than MAX_LENGTH, it will be truncated to MAX_LENGTH and the SUFFIX will be appended.
+        // If the value is longer than MAX_LENGTH, it will be truncated to MAX_LENGTH and the #SUFFIX will be appended IF the length of the #SUFFIX is smaller than the removed characters.
         // >STOP_CHAR limits the length of the placeholder to the first occurrence of STOP_CHAR (can be multiple characters).
         // If the value includes the STOP_CHAR and there are more characters after it, the string will be truncated to the first occurrence of STOP_CHAR and the SUFFIX will be appended.
         // Whatever limit is hit first will be used. Make sure to properly use :#> in the format string.
