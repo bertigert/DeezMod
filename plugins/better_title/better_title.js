@@ -95,7 +95,7 @@ module.exports = {
             }
             
             function parse_placeholder(placeholder) {
-                console.log(`Parsing placeholder: ${placeholder}`);
+                // console.log(`Parsing placeholder: ${placeholder}`);
                 if (!VALID_PLACEHOLDERS.some(ph => current_placeholder.startsWith(ph))) {
                     warn(`Invalid placeholder format: ${placeholder}`);
                     return placeholder;
@@ -116,7 +116,7 @@ module.exports = {
                 stop_char = rules.match(/>([^>]+)$/)?.[1];
                 max_length_suffix = suffixes.match(/^#([^>]*)/)?.[1];
                 stop_char_suffix = suffixes.match(/>(.*)$/)?.[1];   
-                log(`Parsed rules: max_length=${max_length}, stop_char=${stop_char}, max_length_suffix=${max_length_suffix}, stop_char_suffix=${stop_char_suffix}`);
+                // log(`Parsed rules: max_length=${max_length}, stop_char=${stop_char}, max_length_suffix=${max_length_suffix}, stop_char_suffix=${stop_char_suffix}`);
                 const value = placeholder_to_value(name);
                 
                 let had_valid_rules = false;
@@ -143,7 +143,6 @@ module.exports = {
             let final_str = "";
 
             const split = CUSTOM_FORMAT.split(/(%)/);
-            console.log(split);        
 
             let is_placeholder_open = false;
             let current_placeholder = "";
@@ -240,7 +239,6 @@ module.exports = {
             
 
             const title_observer = new MutationObserver(() => {
-                log("Title changed in renderer:", document.title);
                 ipcRenderer.send("better-title-renderer-title-changed", format_title());
             });
             
