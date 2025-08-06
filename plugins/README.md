@@ -16,6 +16,9 @@ Syncs the title of the main window to the titlebar window, making the title visi
 ### Blacklist Song
 Allows you to blacklist songs/artists from playing. Port of [this](https://github.com/bertigert/Deezer-Blacklist-Songs) userscript.
 
+### Disable Live Connection
+Disable live connection to Deezer which is used to sync things like the current playing track across devices. This for example, allows you to play on multiple devices simultaneously. Runs completely in the background, no UI. Port of [this](https://github.com/bertigert/Deezer-Disable-Live-Connection/) userscript.
+
 ### Disable Sentry
 Disables the sending of telementry to Sentry.io.
 
