@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.9",
+    version: "1.2.10",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -413,9 +413,24 @@ module.exports = {
                 log("Aborting the adding of new releases to playlist");
                 return;
             }
-            songs_in_playlist = songs_in_playlist.map(s => s.SNG_ID);
+            // songs_in_playlist = songs_in_playlist.map(s => s.SNG_ID);
 
-            const songs = {};
+            const playlist_songs_map = new Map();
+            const playlist_isrc_map = new Map();
+
+            songs_in_playlist.forEach(song => {
+                playlist_songs_map.set(song.SNG_ID, song);
+                if (config.playlist.filter_duplicate_isrc && song.ISRC) {
+                    const song_name = song.SNG_TITLE.toLowerCase().trim() + song.VERSION?.trim() || "";
+                    if (!playlist_isrc_map.has(song.ISRC)) {
+                        playlist_isrc_map.set(song.ISRC, [song_name]);
+                    } else {
+                        playlist_isrc_map.get(song.ISRC).push(song_name);
+                    }
+                }
+            });
+
+            const songs = new Map();
             async function process_batch(batch) {
                 const promises = batch.map(async (new_release) => {
                     debug("Getting all songs from album for playlist", new_release.id);
@@ -425,7 +440,21 @@ module.exports = {
                             is_song_filtered(song_from_album)) {
                             continue;
                         }
-                        songs[song_from_album.SNG_ID] = new_release.release_date;
+
+                        if (playlist_songs_map.has(song_from_album.SNG_ID)) {
+                            debug("Song already in playlist by ID", song_from_album.SNG_ID);
+                            continue;
+                        }
+
+                        if (config.playlist.filter_duplicate_isrc && song_from_album.ISRC && playlist_isrc_map.has(song_from_album.ISRC)) {
+                            const current_song_name = song_from_album.SNG_TITLE.toLowerCase().trim() + song_from_album.VERSION?.trim() || "";
+                            if (!config.playlist.only_filter_isrc_on_duplicate_name || playlist_isrc_map.get(song_from_album.ISRC).includes(current_song_name)) {
+                                debug("Song already in playlist by ISRC", song_from_album.SNG_ID, song_from_album.ISRC);
+                                continue;
+                            }
+                        }
+
+                        songs.set(song_from_album.SNG_ID, new_release.release_date);
                     }
                 });
                 await Promise.all(promises);
@@ -438,13 +467,8 @@ module.exports = {
                 await sleep(config.parallelism.batch_delay);
             }
 
-            for (let song_in_playlist of songs_in_playlist) {
-                if (songs[song_in_playlist]) {
-                    delete songs[song_in_playlist];
-                }
-            }
-            const sorted_songs = Object.keys(songs).sort((a, b) => {
-                return songs[b] - songs[a];
+            const sorted_songs = Array.from(songs.keys()).sort((a, b) => {
+                return songs.get(b) - songs.get(a);
             });
             if (sorted_songs.length === 0) {
                 log("All new songs already in playlist");
@@ -458,7 +482,7 @@ module.exports = {
                 return;
             }
 
-            sorted_songs.push(...songs_in_playlist);
+            sorted_songs.push(...songs_in_playlist.map(s => s.SNG_ID));
             log("Updating Order of playlist")
             resp = await update_order_of_playlist(playlist_id, sorted_songs);
             return resp.results;
@@ -494,6 +518,19 @@ module.exports = {
         }
 
         function set_cache(data) {
+            const cache_limit = config.limits.max_song_age >= 0 ? config.limits.max_song_age * 3 : Infinity;
+
+            const entries = Object.entries(data.has_seen || {});
+            if (entries.length > cache_limit) {
+                entries.sort((a, b) => a[1] - b[1]);
+
+                const to_remove = entries.slice(0, entries.length - cache_limit);
+                for (const [release_id] of to_remove) {
+                    delete data.has_seen[release_id];
+                    debug("Removed old cache entry", release_id);
+                }
+            }
+
             localStorage.setItem("release_radar_cache", JSON.stringify(data));
         }
 
@@ -564,6 +601,14 @@ module.exports = {
                     [null, "parallelism.batch_delay", 0],
                     ["max_song_count", "limits.max_song_count"],
                     ["max_song_age", "limits.max_song_age"]
+                ],
+                [
+                    [null, "playlist", {
+                        id: null,
+                        filter_duplicate_isrc: false,
+                        only_filter_isrc_on_duplicate_name: false
+                    }],
+                    ["playlist_id", "playlist.id"]
                 ]
             ]
 
@@ -587,7 +632,7 @@ module.exports = {
         }
 
         function get_config() {
-            const CURRENT_CONFIG_VERSION = 3;
+            const CURRENT_CONFIG_VERSION = 4;
 
             let config = localStorage.getItem("release_radar_config");
             if (config) {
@@ -608,7 +653,11 @@ module.exports = {
                     max_song_age: 30
                 },
                 open_in_app: false,
-                playlist_id: null,
+                playlist: {
+                    id: null,
+                    filter_duplicate_isrc: false,
+                    only_filter_isrc_on_duplicate_name: false,
+                },
                 compact_mode: 0,
                 parallelism: {
                     batch_size: 10,
@@ -1252,7 +1301,7 @@ module.exports = {
 
                 if (release.is_feature) {
                     release_li.classList.add("is_feature");
-                    song_title_a.title += ". The artist is featured in at least one of the songs of this release."
+                    song_title_a.title += " - The artist is featured in at least one of the songs of this release."
                 }
                 if (release.is_favorite) {
                     release_li.classList.add("is_favorite");
@@ -1288,7 +1337,7 @@ module.exports = {
                             amount_songs_span.remove(); // we wont need it anymore as we reload the page to udpate songs
                         }
 
-                        cache.has_seen[release.id] = 1;
+                        cache.has_seen[release.id] = release.release_date;
                         set_cache(cache);
                     }
                 }
@@ -1470,7 +1519,7 @@ module.exports = {
             mark_all_as_seen_button.onclick = async () => {
                 const new_releases = await wait_for_new_releases_promise;
                 for (let new_release of new_releases) {
-                    cache.has_seen[new_release.id] = 1;
+                    cache.has_seen[new_release.id] = new_release.release_date;
                     set_cache(cache);
                 }
                 main_div.querySelectorAll("li.release_radar_release_li.is_new").forEach(e => {e.onmouseover()});
@@ -1593,9 +1642,27 @@ module.exports = {
                 (new Setting(
                     "Playlist",
                     "The ID of the playlist in which to store new songs in (the numbers in the url). Empty in order to not save. Songs only get added after a page reload.",
-                    config, "playlist_id",
-                    "span 2"
+                    config.playlist, "id",
+                    "1 / span 2"
                 )).number_setting((playlist_id) => playlist_id.trim() === "" ? null : parseInt(playlist_id).toString())
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Filter by ISRC",
+                    "Don't add songs to the playlist if they are already in it by checking the ISRC. This might have false positives as, for example, remixes sometimes have the same ISRC.",
+                    config.playlist, "filter_duplicate_isrc",
+                    "span 2"
+                )).checkbox_setting()
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Check Name",
+                    "Only filter songs by their ISRC if the song name is the same as the one in the playlist. This should block false positives.",
+                    config.playlist, "only_filter_isrc_on_duplicate_name",
+                    "span 2"
+                )).checkbox_setting()
             );
 
             settings_wrapper.appendChild(
@@ -1799,7 +1866,7 @@ module.exports = {
             user_data.license_token = user_data_tmp.results.USER.OPTIONS.license_token;
 
             cache = get_cache();
-            if (!cache.has_seen) cache.has_seen = {}
+            if (!cache.has_seen) cache.has_seen = {};
 
             // use cache if cache for this user exists and if we havent checked that day
             if (cache[user_data.user_id] && is_after_local_midnight(cache[user_data.user_id].last_checked) ) {
@@ -1849,10 +1916,10 @@ module.exports = {
                 const new_releases_divs = create_new_releases_lis(new_releases, main_btn);
                 main_div.append(...new_releases_divs);
                 main_btn.classList.remove("loading");
-                if (config.playlist_id) {
-                    log("Beginning adding songs to playlist", config.playlist_id);
+                if (config.playlist.id) {
+                    log("Beginning adding songs to playlist", config.playlist.id);
                     main_btn.classList.add("adding_releases");
-                    await add_new_releases_to_playlist(config.playlist_id, new_releases);
+                    await add_new_releases_to_playlist(config.playlist.id, new_releases);
                     main_btn.classList.remove("adding_releases");
                 }
 
