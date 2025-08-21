@@ -39,6 +39,15 @@ See example plugins [here](https://github.com/bertigert/DeezMod/tree/main/plugin
 - macOS: `~/Library/Application Support/DeezMod/plugins`
 - Linux: `~/.local/share/DeezMod/plugins`
 
+### Using Dependencies
+Some plugins depend on some packages or similar. In these cases, the way the dependencies are handled varies from plugin to plugin. A readme is inside of the plugin folder in this repo in these cases. I generally recommend to clone this entire repo/download the zip and using symlinks for the plugin file. For example:
+
+```cmd
+set "plugins_dir=%localappdata%\DeezMod\Data\plugins"
+REM Downloaded the deezmod repo into %deezmod%. Then create a symlink of the main js file in the plugins directory. This way you don't clutter the plugins directory and don't need to worry about correctly structuring the dependencies (assuming the source of the plugin does it correctly).
+mklink "%plugins_dir%\discord_rpc.js" "%deezmod%\plugins\discord_rpc\discord_rpc.js"
+```
+
 ## Latest supported version
-`7.0.100`
+`7.0.140`
 > For version 6.*, use release v1.0.22a.
