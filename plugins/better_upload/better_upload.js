@@ -98,7 +98,7 @@ module.exports = {
                 return upload_id_set;
             }
 
-            async upload_file(file, info_item, personal_songs) {
+            async upload_file(file, info_item) {
                 if (!this.session_id) {
                     await this.get_user_data();
                     if (!this.session_id) {
@@ -135,10 +135,6 @@ module.exports = {
                         let upload_id = null;
                         if (data && data.error?.length === 0) {
                             upload_id = data.results;
-                            if (personal_songs.has(upload_id)) {
-                                info_item.element.title = "This file has already been uploaded once before.";
-                                info_item.element.classList.add("better-upload-already-uploaded");
-                            }
                             return { success: true, upload_id };
                         } else {
                             logger.console.error("Upload failed:", data);
@@ -288,13 +284,18 @@ module.exports = {
                         const info_item = info_items[index];
                         info_item.status.textContent = "⬆️";
                         info_item.status.classList.replace("better-upload-waiting", "better-upload-uploading");
-                        const result = await deezer.upload_file(file, info_item, personal_songs);
+                        const result = await deezer.upload_file(file, info_item);
                         info_item.status.classList.remove("better-upload-uploading");
                         if (result.success) {
                             info_item.status.textContent = "✔️";
                             info_item.song_id.textContent = `${result.upload_id}`;
+                            if (personal_songs.has(result.upload_id)) {
+                                info_item.element.title = "This file has already been uploaded once before.";
+                                info_item.element.classList.add("better-upload-already-uploaded");
+                            }
                             successful_uploads++;
                         } else {
+                            info_item.element.classList.add("better-upload-error");
                             info_item.status.textContent = "❌";
                             failed_uploads++;
                             failed_files.push(file);
@@ -714,6 +715,10 @@ module.exports = {
                     li.better-upload-info-item.better-upload-already-uploaded span {
                         color: var(--tempo-colors-text-neutral-secondary-default);
                     }
+                    li.better-upload-info-item.better-upload-error span {
+                        color: var(--tempo-colors-text-feedback-error-pressed);
+                    }
+
                     li.better-upload-info-item > span.better-upload-status-icon.better-upload-waiting {
                         animation: spin180 1.2s ease-in-out infinite;
                     }
