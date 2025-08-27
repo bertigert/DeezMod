@@ -1,0 +1,1 @@
+Requires [Webpack Patcher](https://github.com/bertigert/DeezMod/tree/main/plugins/webpack_patcher) to be installed.

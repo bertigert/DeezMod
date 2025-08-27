@@ -10,8 +10,14 @@ Allows you to add all songs by an artist to a playlist or an already existing on
 ### Autofocus Main Window
 Automatically focuses the main window whenever you enter the application. This allows you to, for example, always use the hotkeys when tabbing into the application, removing the need to click into it.
 
+### Better Flow
+Allows editing the queue when in flow mode. Port of [this](https://github.com/bertigert/Deezer-Better-Flow) userscript.
+
 ### Better Title
 Syncs the title of the main window to the titlebar window, making the title visible in the taskbar and probably other places. Also allows you to set a custom title (See code).
+
+### Better Upload
+Script which enhances the process of uploading mp3 files to Deezer by providing a better UI and handling for uploads. Port of [this](https://github.com/bertigert/Deezer-Better-Upload) userscript.
 
 ### Blacklist Song
 Allows you to blacklist songs/artists from playing. Port of [this](https://github.com/bertigert/Deezer-Blacklist-Songs) userscript.
@@ -46,6 +52,8 @@ A plugin to toggle various features in the desktop application, for example gapl
 ### URL Bar
 Adds a URL Bar which allows you to view and edit the current path of the url. Supports ajax loading.
 
+### Webpack Patcher
+Library script to patch the code of webpack modules at runtime. Port of [this](https://github.com/bertigert/Deezer-Webpack-Patcher/) userscript.
 
 
 

@@ -1,0 +1,1 @@
+Only a library script. You only need to install it if another script requires it (which it should tell you).
