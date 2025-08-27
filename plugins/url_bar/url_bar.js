@@ -17,26 +17,26 @@ module.exports = {
 
             const { ipcMain } = require("electron");
 
-            let renderer_ipc = null, titlebar_ipc = null;
+            let renderer_ipc, titlebar_ipc;
             
-            ipcMain.on("renderer-ready", (event) => {
+            ipcMain.on("url-bar-renderer-ready", (event) => {
                 log("Renderer ready");
                 renderer_ipc = event.sender;
             });
             
-            ipcMain.on("titlebar-ready", (event) => {
+            ipcMain.on("url-bar-titlebar-ready", (event) => {
                 log("Titlebar ready");
                 titlebar_ipc = event.sender;
             });
 
-            ipcMain.on("renderer-url-changed", (event, url) => {
+            ipcMain.on("url-bar-renderer-url-changed", (event, url) => {
                 log("Url change event received:", url);
-                titlebar_ipc?.send("renderer-url-changed", url);
+                titlebar_ipc?.send("url-bar-renderer-url-changed", url);
             })
 
-            ipcMain.on("manual-url-change", (event, url) => {
+            ipcMain.on("url-bar-manual-url-change", (event, url) => {
                 log("Url manually changed");
-                renderer_ipc?.send("manual-url-change", url);  
+                renderer_ipc?.send("url-bar-manual-url-change", url);  
             })
         }
         
@@ -47,15 +47,15 @@ module.exports = {
             const { ipcRenderer } = require("electron");
             
             ipcRenderer.on("update-data", () => {
-                ipcRenderer.send("renderer-url-changed", window.location.hash.slice(1));
+                ipcRenderer.send("url-bar-renderer-url-changed", window.location.hash.slice(1));
             });
 
-            ipcRenderer.on("manual-url-change", (event, url) => {
-                log("Url got manually changed", url);
+            ipcRenderer.on("url-bar-manual-url-change", (event, url) => {
+                // log("Url got manually changed", url);
                 window.location.hash = "#"+url;
             })
 
-            ipcRenderer.send("renderer-ready");
+            ipcRenderer.send("url-bar-renderer-ready");
                      
             
         } else if (context === "titlebar") {
@@ -182,7 +182,7 @@ module.exports = {
             searchbar_input.onblur = () => {
                 const fixed_url = fix_url(searchbar_input.value);
                 searchbar_input.value = fixed_url?.href || fixed_url;
-                log("manual url change: ", searchbar_input.value);
+                // log("manual url change: ", searchbar_input.value);
 
                 searchbar_div.classList.toggle("focused", false);
                 searchbar_input.readOnly = true;
@@ -192,8 +192,8 @@ module.exports = {
                     const fixed_url = fix_url(searchbar_input.value);
                     // searchbar_input.value = fixed_url?.href || fixed_url; // gets changed due to the event anyways
                     if (fixed_url.href) {
-                        log("sending manual url change: ", fixed_url.pathname);
-                        ipcRenderer.send("manual-url-change", fixed_url.pathname);
+                        log("Sending manual url change: ", fixed_url.pathname);
+                        ipcRenderer.send("url-bar-manual-url-change", fixed_url.pathname);
                     }
                 }
             }
@@ -204,12 +204,12 @@ module.exports = {
             const parent = document.querySelector("#headerbar");
             parent.appendChild(urlbar_div);
             
-            ipcRenderer.on("renderer-url-changed", (event, url) => {
+            ipcRenderer.on("url-bar-renderer-url-changed", (event, url) => {
                 log("Url changed", url);
                 searchbar_input.value = "https://deezer.com" + url;
             });
 
-            ipcRenderer.send("titlebar-ready");
+            ipcRenderer.send("url-bar-titlebar-ready");
 
         }
     }
