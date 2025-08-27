@@ -236,8 +236,6 @@ module.exports = {
             
             const { ipcRenderer } = require("electron");
 
-            
-
             const title_observer = new MutationObserver(() => {
                 ipcRenderer.send("better-title-renderer-title-changed", format_title());
             });
