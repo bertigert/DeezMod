@@ -1,5 +1,5 @@
 # DeezMod
-A tool/documentation for injecting custom scripts into the deezer desktop app.
+A tool to inject custom scripts into the Deezer Desktop Application
 
 ## Microsoft Store
 If you used the microsoft store to install Deezer, the installation can more difficult. The files are then usually located at `C:\Program Files\WindowsApps\Deezer.randomchars_VERSION_x86__randomchars\app\resources`. To gain access to this folder you must give Administrators full access to the `C:\Program Files\WindowsApps\` folder and apply these permission recursively. You can follow this [tutorial](https://forums.flightsimulator.com/t/take-ownership-of-the-windows-apps-folders/388969). Once you've done that, launch the installer (if you use it) as Administrator. This might not actually work, because windows. I'd recommend installing Deezer via their own [installer](https://www.deezer.com/explore/download/). No data should be lost anyways so it should not cause any problems.
