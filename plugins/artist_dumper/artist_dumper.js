@@ -1,7 +1,7 @@
 module.exports = {
     name: "Artist Dumper",
     description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bertigert/Deezer-Artist-Dumper",
-    version: "1.4.8",
+    version: "1.4.9",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -1347,7 +1347,7 @@ module.exports = {
         // url change stuff
 
         function is_new_artist(target_path) {
-            Artdump_log.console(`Navigated from ${last_path} to ${target_path}`);
+            // Artdump_log.console(`Navigated from ${last_path} to ${target_path}`);
 
             const last_id = last_path.split("/artist/")
             const target_id = target_path.split("/artist/");
