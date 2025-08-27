@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.10",
+    version: "1.2.11",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -503,7 +503,7 @@ module.exports = {
         }
 
         function ajax_load(path) {
-            const home_button = document.querySelector("#dzr-app > div > div > div > div > a")
+            const home_button = document.querySelector("#dzr-app div[role='group'] a.chakra-link:has(>svg[data-testid^='House']");
             const react_fiber_key = Object.keys(home_button).find(key => key.startsWith('__reactFiber$'));
             const deezer_ajax_history = home_button[react_fiber_key].return.return.dependencies.firstContext.memoizedValue.history; // there is probably an even easier way to get to the history function
             deezer_ajax_history.push(path);
