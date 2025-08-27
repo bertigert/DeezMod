@@ -6,6 +6,8 @@ module.exports = {
     context: ["renderer"],
     scope: ["own"],
     func: () => {
+        const LOG_DEBUG = false;
+        
         function log(...args) {
             console.log("[Discord RPC]", ...args);
         }
@@ -13,7 +15,7 @@ module.exports = {
             console.error("[Discord RPC]", ...args);
         }
         function debug(...args) {
-            console.debug("[Discord RPC]", ...args);
+            if (LOG_DEBUG) console.debug("[Discord RPC]", ...args);
         }
         
         // this code is heavily inspired by https://github.com/JustYuuto/deezer-discord-rpc
