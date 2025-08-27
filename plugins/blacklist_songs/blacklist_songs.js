@@ -1,7 +1,7 @@
 module.exports = {
     name: "Blacklist Songs",
     description: "Blacklists songs from being played in deezer",
-    version: "1.1.0",
+    version: "1.1.1",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -44,14 +44,12 @@ module.exports = {
             _get_id() {
                 let data = dzPlayer.getCurrentSong();
                 if (data) {
-                    logger.console.log(data);
                     return this.type === Blacklist.BLACKLIST_TYPES.SONG ? data.SNG_ID : data.ART_ID;
                 }
 
                 const wait_for_getCurrentSong = setInterval(() => {
                     data = dzPlayer.getCurrentSong();
                     if (data) {
-                        logger.console.log(data);
                         clearInterval(wait_for_getCurrentSong);
                         return this.type === Blacklist.BLACKLIST_TYPES.SONG ? data.SNG_ID : data.ART_ID;
                     }
@@ -239,6 +237,7 @@ module.exports = {
             static hook_set_tracklist() {
                 const orig_set_tracklist = dzPlayer.setTrackList;
                 dzPlayer.setTrackList = function (...args) {
+                    // logger.console.debug("Hooked dzPlayer.setTrackList called with args:", args);
                     if (!Hooks.is_hooked[Hooks.HOOK_INDEXES.SET_TRACKLIST]) return orig_set_tracklist.apply(this, args);
                     try {
                         let filtered_tracks = [];
@@ -251,7 +250,7 @@ module.exports = {
                             } else {
                                 // the tracklist is always the entire playlist/album and the index is the song the user clicked on,
                                 // so if there is a blacklisted song before the current index, we need to adjust the index
-                                if (i < orig_index) {
+                                if (i < orig_index && args[0].index > 0) {
                                     args[0].index--;
                                 }
                             }
@@ -342,10 +341,8 @@ module.exports = {
                             Hooks.is_hooked.fill(enabled);
                             return;
                         case Hooks.HOOK_INDEXES.FETCH:
-                            Hooks.is_hooked[Hooks.HOOK_INDEXES.FETCH] = enabled;
-                            break;
                         case Hooks.HOOK_INDEXES.SET_TRACKLIST:
-                            Hooks.is_hooked[Hooks.HOOK_INDEXES.SET_TRACKLIST] = enabled;
+                            Hooks.is_hooked[arg] = enabled;
                             break;
                     }
                 }
@@ -355,7 +352,8 @@ module.exports = {
 
         class UI {
             static create_ui() {
-                let parent_div = document.querySelector("#page_player > div > div.chakra-button__group")
+                const selector = "#page_player > div > div.chakra-button__group";
+                let parent_div = document.querySelector(selector);
                 if (parent_div) {
                     UI.create_css();
                     parent_div.prepend(UI.create_main_button());
@@ -365,7 +363,7 @@ module.exports = {
                     const observer = new MutationObserver(mutations => {
                         for (let mutation of mutations) {
                             if (mutation.type === 'childList') {
-                                parent_div = document.querySelector("#page_player > div > div.chakra-button__group")
+                                parent_div = document.querySelector(selector);
                                 if (parent_div) {
                                     observer.disconnect();
                                     if (document.querySelector("button.blacklist_songs")) return;
