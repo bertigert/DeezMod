@@ -1,7 +1,7 @@
 module.exports = {
     name: "Better Flow",
     description: "Makes editing the queue in flow possible.",
-    version: "1.0.0",
+    version: "1.0.1",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -143,18 +143,19 @@ module.exports = {
             }
         }
         
-        const logger = new Logger(true);
-
-        DeezerPlayerHook.detect_and_hook_dzplayer((dzPlayer) => {
-            DeezerPlayerHook.hook_onLoadedTracks();
-        });
+        const logger = new Logger(false);
 
         (function wait_for_webpack_patcher(){
             if (window.register_webpack_patches) {
                 logger.debug("Registering webpack patches");
                 window.register_webpack_patches(PATCHES);
-            } else {
+                DeezerPlayerHook.detect_and_hook_dzplayer((dzPlayer) => {
+                    DeezerPlayerHook.hook_onLoadedTracks();
+                });
+            } else if (!window.webpackJsonpDeezer) {
                 setTimeout(wait_for_webpack_patcher, 0);
+            } else {
+                logger.warn("Webpack array found, but not patcher, stopping");
             }
         })();
     }
