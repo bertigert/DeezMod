@@ -1,7 +1,7 @@
 module.exports = {
     name: "Better Flow",
     description: "Makes editing the queue in flow possible.",
-    version: "1.0.1",
+    version: "1.0.2",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -29,30 +29,6 @@ module.exports = {
                         callback(window.dzPlayer);
                     }
                 }, 10);
-            }
-
-            static hook_setTrackList() {
-                logger.log("Hooking dzPlayer.setTrackList");
-                const orig_set_tracklist = dzPlayer.setTrackList;
-                dzPlayer.setTrackList = function (...args) {
-                    logger.debug("setTrackList called with args:", args);
-                    try {
-                        const data = args[0];
-                        if (args[0].is_spoofed_radio) {
-                            args[0].radio = true;
-                            const orig_is_radio = dzPlayer.isRadio;
-                            dzPlayer.isRadio = () => {
-                                dzPlayer.isRadio = orig_is_radio;
-                                return false;
-                            }
-                            logger.log("setTrackList called, spoofing radio to false");
-                        }
-
-                        return orig_set_tracklist.apply(this, args);
-                    } catch (error) {
-                        logger.error("Error in setTrackList hook:", error);
-                    }
-                };
             }
 
             static hook_onLoadedTracks() {
