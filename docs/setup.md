@@ -1,6 +1,32 @@
 # Setup for developement/ Technical information
 
-## 1. Unpack the app.asar file
+# Option 1: Automatic patching
+
+Prequisites:
+- Node.js
+
+Steps:
+1. Run `setup.js`
+
+`setup.js` has two modes: debug and normal
+- Debug mode: 
+    - Will not repack the app.asar
+    - Will not clean up the output directory
+    - Will not backup the original app.asar
+    - Will not delete the plugins directory
+    - Will not delete the output directory
+- Normal mode:
+    - Will repack the app.asar
+    - Will clean up the output directory
+    - Will backup the original app.asar
+    - Will delete the plugins directory
+    - Will delete the output directory
+
+To run in debug mode, run `setup.js --debug` or `setup.js -d`
+
+# Option 2: Manual patching
+
+### 1. Unpack the app.asar file
 Located (on windows) at "%localappdata%\Programs\deezer-desktop\resources\app.asar" we can extract the content using\
 ```
 asar extract app.asar <out dir>
@@ -10,11 +36,11 @@ You may need to install asar via npm
 npm install --engine-strict @electron/asar
 ```
 
-## 2. Place plugin_loader.js and paths.js on the same level as main.js, renderer.js, etc.
+### 2. Place plugin_loader.js and paths.js on the same level as main.js, renderer.js, etc.
 
 Located at `src/`
 
-## 3. Edit the different js files (or [download](https://github.com/bertigert/DeezMod/tree/main/source) them).
+### 3. Edit the different js files (or [download](https://github.com/bertigert/DeezMod/tree/main/source) them).
 Structure:
 1. We load the plugins using main.js
 2. We execute plugins in the main context
