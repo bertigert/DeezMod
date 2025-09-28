@@ -10,19 +10,9 @@ You may need to install asar via npm
 npm install --engine-strict @electron/asar
 ```
 
-## 2. Place plugin_loader.js on the same level as main.js, renderer.js, etc.
-`plugin_loader.js`
-```js
-async function load_plugins(context) {
-    // only gets called once by main.js
-    // loads the plugins from %localappdata%\Programs\deezer-desktop\plugins
-    // saves the plugins and returns them
-}
+## 2. Place plugin_loader.js and paths.js on the same level as main.js, renderer.js, etc.
 
-function execute_plugins(plugins, context) {
-    // executes the plugins in their given context and scope
-}
-```
+Located at `src/`
 
 ## 3. Edit the different js files (or [download](https://github.com/bertigert/DeezMod/tree/main/source) them).
 Structure:
@@ -69,7 +59,7 @@ Note: We insert inside of everything in order to allow for editing variables onl
     })); // insert point start    
     (async function load_plugins() {
         const plugin_loader = require("./plugin_loader")
-        plugin_loader.execute_plugins(window.plugins.renderer, "renderer");
+        plugin_loader.execute_plugins(window.plugins.renderer, "renderer"); // replace renderer with titlebar for titlebar.js
     })();
 })(), module.exports = __webpack_exports__ // insert point end
 ```
