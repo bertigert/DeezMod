@@ -1,4 +1,3 @@
-# note: this was created with the help of chatgpt
 name: Update release on source change
 
 on:
@@ -21,6 +20,7 @@ jobs:
         with:
           sparse-checkout: |
             source
+            DEEZER_VERSION
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -40,12 +40,17 @@ jobs:
           cd source/build/
           zip ../../patched_source.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
 
+      - name: Read Deezer version
+        id: deezer_version
+        run: echo "DEEZER_VERSION=$(cat DEEZER_VERSION)" >> $GITHUB_ENV
+
       - name: Create release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: 'v1.0.${{ github.run_number }}a'
           name: 'Release v1.0.${{ github.run_number }}a'
+          body: "For Deezer Version ${{ env.DEEZER_VERSION }}"
           files: |
             ./app.asar.zip
             ./patched_source.zip
