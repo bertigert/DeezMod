@@ -28,9 +28,7 @@ const PATCHES = {
             },
             {
                 "match": /(UpdaterService=class\{.*?init\(\)\{).*?(\}install\(\)\{)/,
-                "replace": (_, $1, $2) => { 
-                    console.log($1, "\n",$2);
-                    return `${$1}external_electron_log_namespaceObject.debug("Updater was called, we won't update anything though")${$2}` },
+                "replace": (_, $1, $2) => { return `${$1}external_electron_log_namespaceObject.debug("Updater was called, we won't update anything though")${$2}` },
                 "replace_all": false
             },
             {
