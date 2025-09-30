@@ -1,6 +1,6 @@
 {
   "name": "deezer-desktop",
-  "version": "7.0.140",
+  "version": "7.0.170",
   "private": true,
   "description": "The official Deezer Desktop application built with Electron",
   "homepage": "https://www.deezer.com",
