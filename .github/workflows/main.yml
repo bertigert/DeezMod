@@ -50,7 +50,7 @@ jobs:
         with:
           tag_name: 'v1.0.${{ github.run_number }}a'
           name: 'Release v1.0.${{ github.run_number }}a'
-          body: "For Deezer Version ${{ env.DEEZER_VERSION }}"
+          body: "Release for Deezer version ${{ env.DEEZER_VERSION }}"
           files: |
             ./app.asar.zip
             ./patched_source.zip
