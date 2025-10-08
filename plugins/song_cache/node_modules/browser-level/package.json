@@ -1,0 +1,48 @@
+{
+  "name": "browser-level",
+  "version": "3.0.0",
+  "description": "An abstract-level database for browsers, backed by IndexedDB",
+  "author": "max ogden",
+  "license": "MIT",
+  "main": "index.js",
+  "types": "./index.d.ts",
+  "scripts": {
+    "test": "standard && hallmark && airtap --coverage test/index.js && nyc report",
+    "coverage": "nyc report -r lcovonly"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "iterator.js",
+    "util",
+    "CHANGELOG.md",
+    "UPGRADING.md"
+  ],
+  "dependencies": {
+    "abstract-level": "^3.1.0"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.26.9",
+    "@voxpelli/tsconfig": "^15.1.2",
+    "airtap": "^5.0.0",
+    "airtap-playwright": "^1.0.1",
+    "babelify": "^10.0.0",
+    "hallmark": "^5.0.1",
+    "nyc": "^17.1.0",
+    "standard": "^17.0.0",
+    "tape": "^5.5.2",
+    "typescript": "^5.8.3",
+    "uuid": "^11.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Level/browser-level.git"
+  },
+  "homepage": "https://github.com/Level/browser-level",
+  "keywords": [
+    "level",
+    "leveldb",
+    "indexeddb",
+    "abstract-level"
+  ]
+}

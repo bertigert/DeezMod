@@ -19,7 +19,7 @@ Syncs the title of the main window to the titlebar window, making the title visi
 ### Better Upload
 Script which enhances the process of uploading mp3 files to Deezer by providing a better UI and handling for uploads. Port of [this](https://github.com/bertigert/Deezer-Better-Upload) userscript.
 
-### Blacklist Song
+### Blacklist Songs
 Allows you to blacklist songs/artists from playing. Port of [this](https://github.com/bertigert/Deezer-Blacklist-Songs) userscript.
 
 ### Disable Live Connection
@@ -45,6 +45,9 @@ A script for integrating Musixmatch and custom lyrics into Deezer. Port of [this
 
 ### Release Radar
 Adds a functional Release Radar to Deezer. This is a port of [this](https://github.com/bertigert/Deezer-Release-Radar) userscript.
+
+### Song Cache
+Adds a configurable song cache, useful if you have unused storage, slow internet, but listen to lossless audio. Also improves performance when spamming skip.
 
 ### Toggle Features
 A plugin to toggle various features in the desktop application, for example gapless playback. Very experimental plugin, I've tested basically 0 features, so only change features if you are sure what you are doing. By default gapless playback is enabled.
