@@ -53,7 +53,7 @@ A plugin to toggle various features in the desktop application, for example gapl
 Adds a URL Bar which allows you to view and edit the current path of the url. Supports ajax loading.
 
 ### Webpack Patcher
-Library script to patch the code of webpack modules at runtime. Port of [this](https://github.com/bertigert/Deezer-Webpack-Patcher/) userscript.
+Library script to patch the code of webpack modules at runtime. Port of [this](https://github.com/bertigert/Webpack-Patcher) userscript.
 
 
 
