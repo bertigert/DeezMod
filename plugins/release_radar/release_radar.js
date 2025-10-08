@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.11",
+    version: "1.2.12",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -805,11 +805,11 @@ module.exports = {
             font-size: 9px;
             height: 25px;
             width: 25px;
-            background-color: var(--tempo-colors-background-brand-flame);
+            background-color: var(--tempo-colors-orange-300);
             animation: load_pulse 2s infinite ease-in-out;
         }
         .release_radar_main_btn.adding_releases > span.release_radar_status_indicator_span {
-            background-color: var(--color-intent-warning);
+            background-color: var(--tempo-colors-orange-500);
         }
         .release_radar_main_btn.has_new > span.release_radar_status_indicator_span {
             background-color: var(--tempo-colors-background-accent-primary-default);
