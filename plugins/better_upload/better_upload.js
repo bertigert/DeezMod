@@ -1,7 +1,7 @@
 module.exports = {
     name: "Better Upload",
     description: "Enhances the process of uploading mp3 files to Deezer by providing a better UI and handling for uploads.",
-    version: "1.0.1",
+    version: "1.0.2",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -245,7 +245,7 @@ module.exports = {
 
         class UI {
             static funcs = {
-                upload_file: async (files, info_container, progress_bar_elem, info_list_elem, status_elem) => {
+                upload_file: async (files, info_container, progress_bar_elem, info_list_elem, status_elem, orig_upload_onsuccess) => {
                     if (!files || files.length === 0) {
                         return;
                     }
@@ -294,6 +294,9 @@ module.exports = {
                                 info_item.element.classList.add("better-upload-already-uploaded");
                             }
                             successful_uploads++;
+                            if (typeof orig_upload_onsuccess === "function") {
+                                orig_upload_onsuccess([file]);
+                            }
                         } else {
                             info_item.element.classList.add("better-upload-error");
                             info_item.status.textContent = "❌";
@@ -563,6 +566,10 @@ module.exports = {
 
                 info_container.append(progress_bar, info_header, info_list, status_element.container);
 
+                const orig_upload_input = toolbar.querySelector("input[data-testid='upload-file']");
+                const react_fiber_key = Object.keys(orig_upload_input).find(key => key.startsWith('__reactFiber$'));
+                const orig_upload_onsuccess = orig_upload_input[react_fiber_key].return.dependencies.firstContext.memoizedValue.onSuccess;
+
                 // replace original upload input with our own
                 const file_upload_input = document.createElement("input");
                 file_upload_input.type = "file";
@@ -573,15 +580,44 @@ module.exports = {
                 file_upload_input.onchange = async () => {
                     if (is_processing) return;
                     is_processing = true;
-                    await UI.funcs.upload_file(file_upload_input.files, info_container, progress_bar, info_list, status_element);
+                    await UI.funcs.upload_file(file_upload_input.files, info_container, progress_bar, info_list, status_element, orig_upload_onsuccess);
                     is_processing = false;
                 }
 
-                const orig_upload_input = toolbar.querySelector("input[data-testid='upload-file']");
-                orig_upload_input.parentNode.querySelector("button").onclick = (e) => {
+                const upload_button = orig_upload_input.parentNode.querySelector("button");
+                upload_button.onclick = (e) => {
                     e.stopPropagation();
                     file_upload_input.click();
                 }
+
+                upload_button.addEventListener("dragenter", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    upload_button.classList.add("better-upload-drop-active");
+                });
+                upload_button.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    upload_button.classList.add("better-upload-drop-active");
+                });
+                upload_button.addEventListener("dragleave", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    upload_button.classList.remove("better-upload-drop-active");
+                });
+                upload_button.addEventListener("drop", async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    upload_button.classList.remove("better-upload-drop-active");
+                    const dtFiles = e.dataTransfer?.files;
+                    if (dtFiles && dtFiles.length > 0) {
+                        if (is_processing) return;
+                        is_processing = true;
+                        await UI.funcs.upload_file(dtFiles, info_container, progress_bar, info_list, status_element, orig_upload_onsuccess);
+                        is_processing = false;
+                    }
+                });
+
                 orig_upload_input.replaceWith(file_upload_input);
 
                 return [settings_header, info_container];
@@ -613,6 +649,10 @@ module.exports = {
                     }
                     button.better-upload-settings-button:hover > svg {
                         animation: spin180 0.5s ease-in-out;
+                    }
+                    .better-upload-drop-active {
+                        color: var(--tempo-colors-text-accent-onDark-hovered);
+                        background: var(--tempo-colors-background-accent-primary-hovered);
                     }
 
                     div.better-upload-settings-header {
