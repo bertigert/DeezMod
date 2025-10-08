@@ -7,6 +7,7 @@ on:
       - "!source/README.md"
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   create-release:
