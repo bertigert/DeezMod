@@ -1,7 +1,7 @@
 module.exports = {
     name: "Lyrics Sync",
     description: "Musixmatch and Custom Lyrics Integration for Deezer Desktop",
-    version: "1.0.10",
+    version: "1.0.11",
     author: "bertigert",
     context: ["renderer"],
     scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
@@ -10,6 +10,7 @@ module.exports = {
         // this completely fucks up the dzplayer.getCurrentSong function, so that it always returns a lyrics id (if there are no lyrics, then the negative Song ID)
         // differences between userscript and desktop plugin:
         //   - make_request
+        //   - beginning right under this line
 
         "use strict";
         const node_fetch = require("node-fetch");
@@ -213,8 +214,12 @@ module.exports = {
             }
 
             async save_to_indexed_db(id, added_timestamp, compressed_lyrics, type, opened_db=null) {
-                const [i, a, l, t] = [id, added_timestamp, compressed_lyrics, type];
-                const data = {i, a, l, t};
+                const data = {
+                    i: id,
+                    a: added_timestamp,
+                    l: compressed_lyrics,
+                    t: type
+                }
 
                 const db = opened_db || await this.open_indexed_db(this.db_name, this.store_name);
 
@@ -301,7 +306,9 @@ module.exports = {
 
             async update_entry(id) { // only updates the timestamp, not the compressed data
                 const entry = await this.get_from_indexed_db(id);
-                return this.save_to_indexed_db(id, Date.now(), entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS], entry[Lyrics_DB.INDEXES.TYPE]);
+                if (entry) {
+                    return this.save_to_indexed_db(id, Date.now(), entry[Lyrics_DB.INDEXES.COMPRESSED_LYRICS], entry[Lyrics_DB.INDEXES.TYPE]);
+                }
             }
 
             async _fill_with_dummy_data(num_entries=10000) {
@@ -916,6 +923,8 @@ module.exports = {
                         const current_song_isrc = current_song.ISRC;
                         const response = await orig_fetch.apply(this, args);
                         const real_resp_json = await response.json();
+                        
+                        const original_deezer_response = JSON.parse(JSON.stringify(real_resp_json));
 
                         const which_deezer_lyric_type = Deezer.which_lyric_type(real_resp_json);
 
@@ -996,7 +1005,7 @@ module.exports = {
                                 
                                 await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE); // we save it as none, because we dont want to fetch the musixmatch track info again
                             }
-                            else if (which_musixmatch_lyric_type === musixmatch.TYPES.NONE) { // neither deezer nor musixmatch has lyrics, so we only update the cache timestampt, in case lyrics were there                                logger.console.debug("Song has no lyrics from musixmatch or the type is disabled");
+                            else if (which_musixmatch_lyric_type === musixmatch.TYPES.NONE) { // neither deezer nor musixmatch has lyrics, so we only update the cache timestampt, in case lyrics were there
                                 logger.console.debug("Song has no lyrics from musixmatch or the type is disabled");
                                 // await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE);
                                 await lyrics_db.update_entry(current_song_isrc);
@@ -1036,7 +1045,15 @@ module.exports = {
                                     await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), compressed_lyrics, which_musixmatch_lyric_type);
                                 }
                                 else if (status === musixmatch.RESPONSES.NOT_FOUND) {
-                                    await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE);
+                                    if (which_deezer_lyric_type !== musixmatch.TYPES.NONE) {
+                                        logger.console.debug("Musixmatch claimed to have lyrics but returned none, falling back to Deezer");
+                                        resp_json = original_deezer_response;
+                                        const deezer_lyrics = Deezer.get_lyrics_from_response(resp_json, which_deezer_lyric_type);
+                                        lyrics_info_cache.set(current_song_isrc, which_deezer_lyric_type, Lyrics_Info_Cache.MV.SOURCE.DEEZER, await Lyrics_DB.compress_text(deezer_lyrics));
+                                        await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), await Lyrics_DB.compress_text(deezer_lyrics), which_deezer_lyric_type);
+                                    } else {
+                                        await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE);
+                                    }
                                 }
                             }
                         }
@@ -1495,7 +1512,7 @@ module.exports = {
 
                 const isrc_label = this._Element_Factory.create_label(
                     "ISRC: ",
-                    "The ISRC of a song is a standardized unique identifier of a song. We use it to tell other Platforms what song we mean.",
+                    "The ISRC of a song is a standardized unique identifier of a song. We use it to tell other platforms what song we mean.",
                     3
                 );
                 const isrc_span = this._Element_Factory.create_span("Not fetched", "", null);
@@ -1692,6 +1709,17 @@ module.exports = {
                     config.style.selected_preset = 0;
                 }
 
+                const [hide_image_label, hide_image_checkbox] = this._Element_Factory.create_checkbox(
+                    "Hide Image",
+                    "If checked, the image next to the lyrics will be hidden.",
+                    1
+                );
+                hide_image_checkbox.checked = config.style.hide_image;
+                hide_image_checkbox.onchange = () => {
+                    config.style.hide_image = hide_image_checkbox.checked;
+                    if (config.style.hide_image) document.querySelector("#page_player").style.setProperty("--lyrics-sync-hide-image", "none");
+                    else document.querySelector("#page_player").style.setProperty("--lyrics-sync-hide-image", "flex");
+                }
 
                 const drop_zone_div = document.createElement("div");
                 drop_zone_div.className = "lyrics_sync_drop_zone lyrics_sync_hidden";
@@ -1711,7 +1739,7 @@ module.exports = {
                     e.preventDefault();
                 }
 
-                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, cache_over_deezer_label, word_by_word_enabled_label, synced_enabled_label, unsynced_enabled_label, block_song_version_regex_input, block_song_version_enabled_label, lyrics_textarea, isrc_input, type_dropdown, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, song_info_container_div, export_to_clipboard_label, export_lyrics_button, delete_cache_button, theme_title_span, forced_background_color_input, forced_font_color_input, forced_color_presets_dropdown, preset_name_input, save_preset_button, delete_preset_button, log_textarea, drop_zone_div);
+                container.append(title_span, reload_page_button, enabled_checkbox_label, musixmatch_enabled_label, cache_over_deezer_label, word_by_word_enabled_label, synced_enabled_label, unsynced_enabled_label, block_song_version_regex_input, block_song_version_enabled_label, lyrics_textarea, isrc_input, type_dropdown, submit_from_textarea_button, this._Element_Factory.create_border_div(), upload_files_button, song_info_title_span, reload_song_info_button, song_info_container_div, export_to_clipboard_label, export_lyrics_button, delete_cache_button, theme_title_span, forced_background_color_input, forced_font_color_input, forced_color_presets_dropdown, preset_name_input, save_preset_button, delete_preset_button, hide_image_label, log_textarea, drop_zone_div);
                 return container;
             }
 
@@ -1914,6 +1942,7 @@ module.exports = {
                     #page_player {
                         --lyrics-sync-forced-background-color: ${config.style.forced_background_color || "inherit"};
                         --lyrics-sync-forced-font-color: ${config.style.forced_font_color || "inherit"};
+                        --lyrics-sync-hide-image: ${config.style.hide_image ? "none" : "flex"};
                     }
                     #page_player > div.player-lyrics-full > div > div:nth-child(1) {
                         margin-top: 0px !important;
@@ -1930,6 +1959,13 @@ module.exports = {
                     #page_player > div.player-lyrics-full > div > div circle.chakra-progress__indicator {
                         stroke: var(--lyrics-sync-forced-font-color) !important;
                     }
+
+                    #page_player > div.player-lyrics-full > div > div:nth-child(2) > div {
+                        justify-content: center;
+                    }
+                    #page_player > div.player-lyrics-full > div > div:nth-child(2) > div:nth-child(1):not(.queuelist-cover) > div:nth-child(1) {
+                        display: var(--lyrics-sync-hide-image) !important;
+                    }
                 `;
                 const style = document.createElement("style");
                 style.type = "text/css";
@@ -1939,7 +1975,7 @@ module.exports = {
         }
 
         class Config {
-            static CURRENT_CONFIG_VERSION = 1;
+            static CURRENT_CONFIG_VERSION = 2;
 
             StringConfig = class {
                 // functions to traverse and edit a json based on string paths
@@ -2004,9 +2040,9 @@ module.exports = {
                             ["Mimic Deezer 2", "var(--tempo-colors-text-neutral-secondary-default)", "var(--tempo-colors-background-neutral-secondary-default)"],
                             ["White on Black", "#FFFFFF", "#000000"],
                             ["Black on White", "#000000", "#FFFFFF"]
-                        ]
+                        ],
+                        hide_image: false
                     }
-
                 };
             }
 
@@ -2065,6 +2101,9 @@ module.exports = {
                             enabled: false,
                             regex: "remix"
                         }]
+                    ],
+                    [
+                        [null, "style.hide_image", false]
                     ]
                 ]
 
