@@ -38,7 +38,7 @@ jobs:
         run: |
           zip app.asar.zip app.asar
           cd source/build/
-          zip ../../patched_source.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
+          zip ../../patched_source.zip main.js preload.js plugin_loader.js renderer.js titlebar.js paths.js
 
       - name: Read Deezer version
         id: deezer_version
