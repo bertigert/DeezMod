@@ -49,5 +49,5 @@ mklink "%plugins_dir%\discord_rpc.js" "%deezmod%\plugins\discord_rpc\discord_rpc
 ```
 
 ## Latest supported version
-`7.0.140`
+See [Version File](https://github.com/bertigert/DeezMod/blob/main/DEEZER_VERSION)
 > For version 6.*, use release v1.0.22a.
