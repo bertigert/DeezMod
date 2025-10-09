@@ -1,7 +1,7 @@
 module.exports = {
     name: "Webpack Patcher",
     description: "Library script to patch the code of webpack modules at runtime. Exposes a global register_webpack_patches function.",
-    version: "2.0.0",
+    version: "2.0.1",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
