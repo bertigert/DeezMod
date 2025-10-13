@@ -1,7 +1,7 @@
 module.exports = {
     name: "Webpack Patcher",
     description: "Library script to patch the code of webpack modules at runtime. Exposes a global register_webpack_patches function.",
-    version: "2.0.1",
+    version: "2.0.2",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -456,6 +456,11 @@ module.exports = {
             _apply_patch(factory, factory_str, matches_and_replacements, module_id, registrar_name) {
                 let patched_code;
                 
+                if (!Array.isArray(matches_and_replacements) || matches_and_replacements.length === 0) {
+                    this.logger.warn(`Module was matched, but no replacements provided`);
+                    return { factory, factory_str };
+                }
+
                 try {
                     patched_code = factory_str;
                     let total_replacements = 0;
