@@ -102,6 +102,19 @@ module.exports = {
             }
 
             /**
+             * Get placeholder replacements for a given registrar name
+             * @param {string} registrar_name - Name of the registrar
+             * @returns {Object} Object mapping placeholders to their replacements
+             */
+            _get_placeholder_replacements(registrar_name) {
+                return {
+                    [this.placeholders.self]: `window.WebpackPatcher.Registrars["${registrar_name}"]`,
+                    [this.placeholders.functions]: `window.WebpackPatcher.Registrars["${registrar_name}"].functions`,
+                    [this.placeholders.data]: `window.WebpackPatcher.Registrars["${registrar_name}"].data`
+                };
+            }
+
+            /**
              * Add an event listener
              * @param {string} event - Event name: "webpack_detected", "module_registered", "module_patched"
              * @param {Function} callback - Callback function
@@ -496,12 +509,7 @@ module.exports = {
                         return { factory, factory_str };
                     }
 
-                    // replace placeholders
-                    const placeholder_replacements = {
-                        [this.placeholders.self]: `window.WebpackPatcher.Registrars["${registrar_name}"]`,
-                        [this.placeholders.functions]: `window.WebpackPatcher.Registrars["${registrar_name}"].functions`,
-                        [this.placeholders.data]: `window.WebpackPatcher.Registrars["${registrar_name}"].data`
-                    };
+                    const placeholder_replacements = this._get_placeholder_replacements(registrar_name);
                     for (const [placeholder, replacement] of Object.entries(placeholder_replacements)) {
                         patched_code = patched_code.replaceAll(placeholder, replacement);
                     }
