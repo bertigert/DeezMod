@@ -308,7 +308,7 @@ module.exports = {
                 static active_requests = new Map(); // Track active requests by file_name
     
                 static hook_fetch() {
-                    //logger.console.debug("Hooking window.fetch");
+                    logger.console.log("Hooking window.fetch");
                     const orig_fetch = window.fetch;
                     async function hooked_fetch(...args) {
                         if (!Hooks.is_hooked[Hooks.HOOK_INDEXES.FETCH]) return orig_fetch.apply(this, args);
@@ -361,7 +361,7 @@ module.exports = {
                                         (async () => { // dont block returning the response
                                             try {
                                                 const buffer = Buffer.from(await response_clone.arrayBuffer());
-                                                if (buffer.byteLength > 0 && !existing_existing_controller_aborter.aborted) {
+                                                if (buffer.byteLength > 0 && !existing_existing_controller_aborter?.aborted) {
                                                     cache.set(song_id, file_name, buffer, orig_response.headers.get("Content-Type"));
                                                 }
                                             } catch (error) {
@@ -809,7 +809,7 @@ module.exports = {
             const PATCHES = [
                 {
                     find: ["this._buffered=[]"],
-                    matches_and_replacements: [
+                    replacements: [
                         {
                             match: ":this.aborter.signal",
                             replace: ":this.aborter.signal,aborter:this.aborter",
@@ -823,10 +823,12 @@ module.exports = {
             let cache;
 
             (async function main() {
-                (function wait_for_webpack_patcher(){
-                    if (window.register_webpack_patches) {
-                        logger.console.debug("Registering webpack patches");
-                        window.register_webpack_patches(PATCHES);
+                (async function wait_for_webpack_patcher(){
+                    if (window.WebpackPatcher) {
+                        logger.console.log("Registering webpack patches");
+                        window.WebpackPatcher.register({
+                            name: "SongCache",
+                        },PATCHES);
                     } else if (!window.webpackJsonpDeezer) {
                         setTimeout(wait_for_webpack_patcher, 0);
                     } else {
@@ -837,7 +839,6 @@ module.exports = {
                 cache = new Cache();
 
                 UI.create_ui();
-                logger.console.log("Hooking window.fetch");
                 const wait_for_dz_player_interval = setInterval(() => {
                     if (window.dzPlayer) {
                         clearInterval(wait_for_dz_player_interval);
