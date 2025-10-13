@@ -1,7 +1,7 @@
 module.exports = {
     name: "Song Cache",
     description: "Save songs to a local cache, allowing for quicker playback.",
-    version: "1.0.0",
+    version: "1.0.1",
     author: "bertigert",
     context: ["main", "renderer"],
     scope: ["own", "own"],
