@@ -23,7 +23,7 @@ const PATCHES = {
             },
             {
                 "match": /(getZoomOutOptions\(\)\{return.*?\}\})/,
-                "replace": (_, $1) => { return `${$1}getOpenPluginsOptions(){return{label:"Open Plugins",role:"openPlugins",click:()=>{external_electron_namespaceObject.shell.openPath(require("./plugin_loader").plugin_dir)}}}getReloadPluginsOptions(){return{label:"Reload Plugins",role:"reloadPlugins",click:()=>{load_plugins(true);this.app.reloadApp()}}}` },
+                "replace": (_, $1) => { return `${$1}getOpenPluginsOptions(){return{label:"Open Plugins",role:"openPlugins",click:()=>{external_electron_namespaceObject.shell.openPath(require("./DeezMod/plugin_loader").plugin_dir)}}}getReloadPluginsOptions(){return{label:"Reload Renderer Plugins",role:"reloadPlugins",click:()=>{load_plugins(true);this.app.reloadApp()}}}` },
                 "replace_all": false
             },
             {
@@ -32,8 +32,8 @@ const PATCHES = {
                 "replace_all": false
             },
             {
-                "match": `})(),module.exports=__webpack_exports__`,
-                "replace": `;async function load_plugins(is_reload=false){const plugin_loader=require("./plugin_loader");const plugins=await plugin_loader.load_plugins("main",is_reload);const functions_in_scope=plugin_loader.execute_plugins(plugins.main,"main");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){external_electron_log_default().error("Error executing plugins in main context with loader scope:",e)}}}load_plugins(false)})(),module.exports=__webpack_exports__`,
+                "match": `module.exports=__webpack_exports__`,
+                "replace": `async function load_plugins(is_reload=false){const plugin_loader=require("./DeezMod/plugin_loader");const plugins=await plugin_loader.load_plugins("main",is_reload);const functions_in_scope=plugin_loader.execute_plugins(plugins.main,"main");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){external_electron_log_default().error("Error executing plugins in main context with loader scope:",e)}}}load_plugins(false);module.exports=__webpack_exports__`,
                 "replace_all": false
             }
         ]
@@ -46,8 +46,8 @@ const PATCHES = {
                 "replace_all": false
             },
             {
-                "match": "})(),module.exports=__webpack_exports__",
-                "replace": `;(async function load_plugins(){const plugin_loader=require("./plugin_loader");const plugins=await plugin_loader.load_plugins("preload",false);const functions_in_scope=plugin_loader.execute_plugins(plugins.preload,"preload");try{Object.defineProperty(window,"DeezMod",{value:{plugins},writable:false,configurable:false,enumerable:true});if(typeof plugins==="object"&&plugins!==null)Object.freeze(plugins)}catch(e){window.DeezMod={plugins}}if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in preload context with loader scope",e)}}})()})(),module.exports=__webpack_exports__`,
+                "match": "module.exports={}",
+                "replace": `(async function load_plugins(){const plugin_loader=require("./DeezMod/plugin_loader");const plugins=await plugin_loader.load_plugins("preload",false);const functions_in_scope=plugin_loader.execute_plugins(plugins.preload,"preload");try{Object.defineProperty(window,"DeezMod",{value:{plugins},writable:false,configurable:false,enumerable:true});if(typeof plugins==="object"&&plugins!==null)Object.freeze(plugins)}catch(e){window.DeezMod={plugins}}if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in preload context with loader scope",e)}}})();module.exports={}`,
                 "replace_all": false
             }
         ]
@@ -55,8 +55,8 @@ const PATCHES = {
     "build/renderer.js": {
         "patches": [
             {
-                "match": "})(),module.exports=__webpack_exports__",
-                "replace": `;(async function load_plugins(){const plugin_loader=require("./plugin_loader");const functions_in_scope=plugin_loader.execute_plugins(window.DeezMod.plugins.renderer,"renderer");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in renderer context with loader scope",e)}}})()})(),module.exports=__webpack_exports__`,
+                "match": "module.exports={}",
+                "replace": `(async function load_plugins(){const plugin_loader=require("./DeezMod/plugin_loader");const functions_in_scope=plugin_loader.execute_plugins(window.DeezMod.plugins.renderer,"renderer");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in renderer context with loader scope",e)}}})();module.exports={}`,
                 "replace_all": false
             }
         ]
@@ -64,8 +64,8 @@ const PATCHES = {
     "build/titlebar.js": {
         "patches": [
             {
-                "match": "})(),module.exports=__webpack_exports__",
-                "replace": `;(async function load_plugins(){const plugin_loader=require("./plugin_loader");const functions_in_scope=plugin_loader.execute_plugins(window.DeezMod.plugins.titlebar,"titlebar");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in titlebar context with loader scope",e)}}})()})(),module.exports=__webpack_exports__`,
+                "match": "module.exports={}",
+                "replace": `(async function load_plugins(){const plugin_loader=require("./DeezMod/plugin_loader");const functions_in_scope=plugin_loader.execute_plugins(window.DeezMod.plugins.titlebar,"titlebar");if(functions_in_scope!==""){try{eval(functions_in_scope)}catch(e){console.error("Error executing plugins in titlebar context with loader scope",e)}}})();module.exports={}`,
                 "replace_all": false
             }
         ]

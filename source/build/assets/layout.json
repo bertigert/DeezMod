@@ -50,8 +50,8 @@
 	},
 
 	"backstage": {
-		"js": ["runtime", "legacy", "app-backstage"],
-		"css": ["app-backstage", "bootstrap-tempo"]
+		"js": ["runtime", "legacy"],
+		"css": ["bootstrap-tempo"]
 	},
 
 	"developers_template": {
