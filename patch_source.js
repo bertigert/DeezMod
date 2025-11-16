@@ -113,7 +113,7 @@ async function apply_patches(patches_obj, base_dir='source') {
         const results = await apply_patches(patches_obj, path.join(process.cwd(), 'source'));
         log('Patch run complete, results:');
         log(results);
-        warn("\n===== DON'T FORGET TO MOVE OTHER FILES=====");
+        warn("\n===== DON'T FORGET TO MOVE OTHER FILES AND UPDATE DEEZER_VERSION=====");
         process.exit(0);
     } catch (e) {
         error('Patch run failed:', e);
