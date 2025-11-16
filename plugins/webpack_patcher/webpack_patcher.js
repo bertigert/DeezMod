@@ -1,7 +1,7 @@
 module.exports = {
     name: "Webpack Patcher",
     description: "Library script to patch the code of webpack modules at runtime. Exposes a global register_webpack_patches function.",
-    version: "2.0.2",
+    version: "2.0.3",
     author: "bertigert",
     context: ["renderer"],
     scope: ["own"],
@@ -107,10 +107,11 @@ module.exports = {
              * @returns {Object} Object mapping placeholders to their replacements
              */
             _get_placeholder_replacements(registrar_name) {
+                const registrar = `window.WebpackPatcher.Registrars["${registrar_name}"]`;
                 return {
-                    [this.placeholders.self]: `window.WebpackPatcher.Registrars["${registrar_name}"]`,
-                    [this.placeholders.functions]: `window.WebpackPatcher.Registrars["${registrar_name}"].functions`,
-                    [this.placeholders.data]: `window.WebpackPatcher.Registrars["${registrar_name}"].data`
+                    [this.placeholders.self]: registrar,
+                    [this.placeholders.functions]: `${registrar}.functions`,
+                    [this.placeholders.data]: `${registrar}.data`
                 };
             }
 
@@ -438,7 +439,7 @@ module.exports = {
                     
                     const patch_result = this._apply_patch(current_factory, current_factory_str, patch.replacements, module_id, patch._registrar_name);
                     
-                    if (patch_result.factory !== current_factory) {
+                    if (patch_result.patched) {
                         current_factory = patch_result.factory;
                         current_factory_str = patch_result.factory_str;
                         any_patches_applied = true;
@@ -464,14 +465,18 @@ module.exports = {
              * @param {Array<Object>} matches_and_replacements - Array of {match, replace, global} objects
              * @param {string} module_id - Module ID for logging
              * @param {string} registrar_name - Name of registrar for placeholder replacement
-             * @returns {{factory: Function, factory_str: string}} Patched factory and its string representation, or original if patching fails
+             * @returns {{patched: boolean, factory: Function, factory_str: string}} Patched factory and its string representation, or original if patching fails
              */
             _apply_patch(factory, factory_str, matches_and_replacements, module_id, registrar_name) {
                 let patched_code;
                 
                 if (!Array.isArray(matches_and_replacements) || matches_and_replacements.length === 0) {
                     this.logger.warn(`Module was matched, but no replacements provided`);
-                    return { factory, factory_str };
+                    return {
+                        patched: false,
+                        factory, 
+                        factory_str
+                    };
                 }
 
                 try {
@@ -506,7 +511,11 @@ module.exports = {
 
                     if (total_replacements === 0) {
                         this.logger.warn(`No replacements occurred in module ${module_id}, returning original factory`);
-                        return { factory, factory_str };
+                        return {
+                            patched: false,
+                            factory,
+                            factory_str
+                        };
                     }
 
                     const placeholder_replacements = this._get_placeholder_replacements(registrar_name);
@@ -521,13 +530,18 @@ module.exports = {
                         ? (0, eval)(patched_source)
                         : new Function(`return (${patched_code})`)();
                     
-                    return { 
+                    return {
+                        patched: true,
                         factory: patched_factory, 
                         factory_str: patched_code 
                     };
                 } catch (e) {
                     this.logger.error(`Replacement based patching failed:`, e, "patched code:", patched_code);
-                    return { factory, factory_str };
+                    return {
+                        patched: false,
+                        factory,
+                        factory_str
+                    };
                 }
             }
 
@@ -869,6 +883,9 @@ module.exports = {
                             },
                             get placeholders() {
                                 return webpack_patch_registrar.patcher?.placeholders;
+                            },
+                            get ph() {
+                                return this.placeholders;
                             },
                             get VERSION() {
                                 return WebpackPatcher.VERSION;
