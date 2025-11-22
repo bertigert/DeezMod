@@ -1,0 +1,1 @@
+Requires [WebpackPatcher](https://github.com/bertigert/Webpack-Patcher). Install for Desktop [here](https://github.com/bertigert/DeezMod/tree/main/plugins/webpack_patcher)

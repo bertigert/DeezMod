@@ -13,6 +13,9 @@ Automatically focuses the main window whenever you enter the application. This a
 ### Better Flow
 Allows editing the queue when in flow mode. Port of [this](https://github.com/bertigert/Deezer-Better-Flow) userscript.
 
+### Better Player
+QoL improvements for the Deezer player(bar). Port of [this](https://github.com/bertigert/Deezer-Better-Player) userscript.
+
 ### Better Title
 Syncs the title of the main window to the titlebar window, making the title visible in the taskbar and probably other places. Also allows you to set a custom title (See code).
 
