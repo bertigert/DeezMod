@@ -1,12 +1,12 @@
 name: Update release on source change
 
 on:
-  push:
-    paths:
-      - "source/**"
-      - "!source/README.md"
-    branches:
-      - main
+  # push:
+  #   paths:
+  #     - "source/**"
+  #     - "!source/README.md"
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 jobs:
@@ -45,12 +45,16 @@ jobs:
         id: deezer_version
         run: echo "DEEZER_VERSION=$(cat DEEZER_VERSION)" >> $GITHUB_ENV
 
+      - name: Read DeezMod version
+        id: deezmod_version
+        run: echo "DEEZMOD_VERSION=$(cat DEEZMOD_VERSION)" >> $GITHUB_ENV
+
       - name: Create release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: 'v1.0.${{ github.run_number }}a'
-          name: 'Release v1.0.${{ github.run_number }}a'
+          tag_name: 'v${{ env.DEEZMOD_VERSION }}'
+          name: 'Release v${{ env.DEEZMOD_VERSION }}'
           body: "Release for Deezer version ${{ env.DEEZER_VERSION }}"
           files: |
             ./app.asar.zip
