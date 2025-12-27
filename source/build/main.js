@@ -364,7 +364,7 @@
         MediaEvents.PlayerUpdated = "player-updated", MediaEvents.TrackUpdated = "track-updated"
     }(MediaEvents || (MediaEvents = {})),
     function(MenuItemType) {
-        MenuItemType.OpenPlugins = "open-plugins", MenuItemType.ReloadPlugins = "reload-plugins", MenuItemType.PluginsEnabled = "plugins-enabled", MenuItemType.Plugins = "plugins", MenuItemType.About = "about", MenuItemType.Close = "close", MenuItemType.Copy = "copy", MenuItemType.Cut = "cut", MenuItemType.Devtools = "devtools", MenuItemType.Features = "features", MenuItemType.Front = "front", MenuItemType.Hide = "hide", MenuItemType.HideOthers = "hide-others", MenuItemType.HistoryBack = "history-back", MenuItemType.HistoryForward = "history-forward", MenuItemType.Logout = "logout", MenuItemType.Minimize = "minimize", MenuItemType.Open = "open", MenuItemType.Paste = "paste", MenuItemType.PlayerPlay = "player-play", MenuItemType.PlayerNext = "player-next", MenuItemType.PlayerPrev = "player-prev", MenuItemType.PlayerShuffle = "player-shuffle", MenuItemType.PlayerRepeatMode = "player-repeat-mode", MenuItemType.PlayerVolumeUp = "player-volume-up", MenuItemType.PlayerVolumeDown = "player-volume-down", MenuItemType.Preferences = "preferences", MenuItemType.Quit = "quit", MenuItemType.Reload = "reload", MenuItemType.ResetZoom = "reset-zoom", MenuItemType.SelectAll = "select-all", MenuItemType.Separator = "separator", MenuItemType.SwitchProfile = "switch-profile", MenuItemType.ToggleFullScreen = "toggle-full-screen", MenuItemType.Unhide = "unhide", MenuItemType.Version = "version", MenuItemType.ZoomIn = "zoom-in", MenuItemType.ZoomOut = "zoom-out"
+        MenuItemType.DeezModVersion = "deezmod-version", MenuItemType.OpenPlugins = "open-plugins", MenuItemType.ReloadPlugins = "reload-plugins", MenuItemType.PluginsEnabled = "plugins-enabled", MenuItemType.Plugins = "plugins", MenuItemType.About = "about", MenuItemType.Close = "close", MenuItemType.Copy = "copy", MenuItemType.Cut = "cut", MenuItemType.Devtools = "devtools", MenuItemType.Features = "features", MenuItemType.Front = "front", MenuItemType.Hide = "hide", MenuItemType.HideOthers = "hide-others", MenuItemType.HistoryBack = "history-back", MenuItemType.HistoryForward = "history-forward", MenuItemType.Logout = "logout", MenuItemType.Minimize = "minimize", MenuItemType.Open = "open", MenuItemType.Paste = "paste", MenuItemType.PlayerPlay = "player-play", MenuItemType.PlayerNext = "player-next", MenuItemType.PlayerPrev = "player-prev", MenuItemType.PlayerShuffle = "player-shuffle", MenuItemType.PlayerRepeatMode = "player-repeat-mode", MenuItemType.PlayerVolumeUp = "player-volume-up", MenuItemType.PlayerVolumeDown = "player-volume-down", MenuItemType.Preferences = "preferences", MenuItemType.Quit = "quit", MenuItemType.Reload = "reload", MenuItemType.ResetZoom = "reset-zoom", MenuItemType.SelectAll = "select-all", MenuItemType.Separator = "separator", MenuItemType.SwitchProfile = "switch-profile", MenuItemType.ToggleFullScreen = "toggle-full-screen", MenuItemType.Unhide = "unhide", MenuItemType.Version = "version", MenuItemType.ZoomIn = "zoom-in", MenuItemType.ZoomOut = "zoom-out"
     }(MenuItemType || (MenuItemType = {})),
     function(NetworkStatus) {
         NetworkStatus.Online = "online", NetworkStatus.Offline = "offline"
@@ -419,7 +419,7 @@
             return new external_electron_namespaceObject.MenuItem({
                 label: i18n_t("DeezMod"),
                 role: "deezmod",
-                submenu: [this.menu.getItemOptions(MenuItemType.OpenPlugins), this.menu.getItemOptions(MenuItemType.ReloadPlugins), this.menu.getItemOptions(MenuItemType.Separator), this.menu.getItemOptions(MenuItemType.PluginsEnabled), this.menu.getItemOptions(MenuItemType.Plugins)]
+                submenu: [this.menu.getItemOptions(MenuItemType.DeezModVersion), this.menu.getItemOptions(MenuItemType.OpenPlugins), this.menu.getItemOptions(MenuItemType.ReloadPlugins), this.menu.getItemOptions(MenuItemType.Separator), this.menu.getItemOptions(MenuItemType.PluginsEnabled), this.menu.getItemOptions(MenuItemType.Plugins)]
             })
         }
         getFileMenu() {
@@ -832,6 +832,8 @@
                     return this.getZoomInOptions();
                 case MenuItemType.ZoomOut:
                     return this.getZoomOutOptions();
+                case MenuItemType.DeezModVersion:
+                    return this.getDeezModVersionOptions();
                 case MenuItemType.OpenPlugins:
                     return this.getOpenPluginsOptions();
                 case MenuItemType.ReloadPlugins:
@@ -842,6 +844,12 @@
                     return this.getPluginsOptions();
                 default:
                     return {}
+            }
+        }
+        getDeezModVersionOptions() {
+            return {
+                label: `DeezMod 1.1.0`,
+                enabled: !1
             }
         }
         getOpenPluginsOptions() {

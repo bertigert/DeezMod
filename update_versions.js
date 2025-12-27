@@ -16,6 +16,10 @@ const path_regex_map = {
         {
             "path": "./source/build/DeezMod/userscripts/apis/GM/info.js",
             "regex": /(version:\s*").*?(")/
+        },
+        {
+            "path": "./source/build/main.js",
+            "regex": /(label:\s*`DeezMod\s).*?(`,)/
         }
     ]
 }
