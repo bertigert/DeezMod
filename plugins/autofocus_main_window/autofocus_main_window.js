@@ -3,8 +3,9 @@ module.exports = {
     description: "Automatically focuses the main window.",
     version: "1.0.0",
     author: "bertigert",
-    context: ["main"],
-    scope: ["loader"],
+    context: {
+        main: "loader"
+    },
     func: (context) => {
         function log(...args) {
             console.log("[Autofocus Main Window]", ...args);
@@ -21,7 +22,7 @@ module.exports = {
                     browserView?.webContents.focus();
                 });
             }
-        });
+        }, 1);
         
         log("Plugin loaded");
     }

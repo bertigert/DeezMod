@@ -3,8 +3,9 @@ module.exports = {
     description: "Disables the sending of telementry to Sentry.io",
     version: "1.0",
     author: "bertigert",
-    context: ["preload"],
-    scope: ["own"],
+    context: {
+        "rendererPreload": "own"
+    },
     func: () => {
         function log(...args) {
             console.log("[Disable Sentry]", ...args);
@@ -18,7 +19,6 @@ module.exports = {
             }
             if (window.__SENTRY__) {
                 window.__SENTRY__ = null;
-                log("Tried disabling initializing Sentry");
             }
         }, 10);
     }

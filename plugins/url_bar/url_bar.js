@@ -3,8 +3,11 @@ module.exports = {
     description: "Adds an URL bar inside the titlebar",
     version: "1.0",
     author: "bertigert",
-    context: ["main", "renderer", "titlebar"],
-    scope: ["own", "main", "own"],
+    context: {
+        main: "own",
+        renderer: "own",
+        titlebar: "own"
+    },
     func: (context) => {
         function log(...args) {
             console.log("[URL Bar]", ...args);
@@ -161,19 +164,19 @@ module.exports = {
                 let parsed_url = is_valid_url(url);
               
                 if (!parsed_url) { // /path or path
-                    parsed_url = is_valid_url(`https://deezer.com/${url.replace(/^\/+/, '')}`);
+                    parsed_url = is_valid_url(`https://deezer.com/${url.replace(/^\/+/, "")}`);
                 }
                 
                 if (!parsed_url) { // deezer.com/path
-                    parsed_url = is_valid_url(`https://${url.replace(/^\/+/, '')}`);
+                    parsed_url = is_valid_url(`https://${url.replace(/^\/+/, "")}`);
                 }
                 
                 if (!parsed_url) { // somethings completely wrong
                     return url;
                 }
               
-                parsed_url.protocol = 'https:';
-                parsed_url.host = 'deezer.com';
+                parsed_url.protocol = "https:";
+                parsed_url.host = "deezer.com";
                 parsed_url.pathname = parsed_url.pathname.replace(/\/*$/, "/")
 
                 return parsed_url;

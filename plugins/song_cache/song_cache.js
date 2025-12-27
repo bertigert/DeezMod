@@ -3,14 +3,16 @@ module.exports = {
     description: "Save songs to a local cache, allowing for quicker playback.",
     version: "1.0.1",
     author: "bertigert",
-    context: ["main", "renderer"],
-    scope: ["own", "own"],
+    context: {
+        main: "own",
+        renderer: "own"
+    },
     func: (context) => {
         // Supports songs and audio books, but not podcasts.
         function context_renderer() {
             "use strict";
             const { Level } = require("./node_modules/level");
-            const { ipcRenderer } = require('electron');
+            const { ipcRenderer } = require("electron");
     
             class Logger {
                 static LOG_VERY_MANY_THINGS_YES_YES = false; // set to false if you dont want the console getting spammed
@@ -34,9 +36,9 @@ module.exports = {
             }
 
             function format_bytes(bytes, decimals = 2) { 
-                if (bytes === 0) return '0 B';
+                if (bytes === 0) return "0 B";
                 const k = 1000;
-                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const sizes = ["B", "KB", "MB", "GB", "TB"];
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${sizes[i]}`;
             }
@@ -57,9 +59,9 @@ module.exports = {
                     
                     if (config.cache_location) {
                         try {
-                            this.db = new Level(config.cache_location+ '/song_cache');
-                            this.song_data_db = this.db.sublevel('song_data', { valueEncoding: 'binary' }); 
-                            this.metadata_db = this.db.sublevel('metadata', { valueEncoding: 'json' });
+                            this.db = new Level(config.cache_location+ "/song_cache");
+                            this.song_data_db = this.db.sublevel("song_data", { valueEncoding: "binary" }); 
+                            this.metadata_db = this.db.sublevel("metadata", { valueEncoding: "json" });
                             logger.console.debug("Cache initialized at:", config.cache_location);
                             this._start_cleanup_job();
                         } catch (error) {
@@ -218,7 +220,7 @@ module.exports = {
                 }
     
                 _calculate_entry_size(song_data) {
-                    if (typeof song_data === 'string') {
+                    if (typeof song_data === "string") {
                         return new Blob([song_data]).size;
                     } else if (song_data instanceof ArrayBuffer) {
                         return song_data.byteLength;
@@ -365,7 +367,7 @@ module.exports = {
                                                     cache.set(song_id, file_name, buffer, orig_response.headers.get("Content-Type"));
                                                 }
                                             } catch (error) {
-                                                if (error.name === 'AbortError') {
+                                                if (error.name === "AbortError") {
                                                     // logger.console.debug("Request aborted for file during background caching:", file_name);
                                                     cache.delete(song_id);
                                                 } else {
@@ -379,7 +381,7 @@ module.exports = {
                                     return orig_response;
                                 } catch (error) {
                                     Hooks.active_requests.delete(file_name);
-                                    if (error.name === 'AbortError') {
+                                    if (error.name === "AbortError") {
                                         logger.console.debug("Request aborted for file:", file_name);
                                     }
                                     throw error;
@@ -402,7 +404,7 @@ module.exports = {
 
                             return response;
                         } catch (error) {
-                            if (error.name !== 'AbortError') {
+                            if (error.name !== "AbortError") {
                                 logger.console.error("Error in fetch hook:", error);
                                 return orig_fetch.apply(this, args);
                             }
@@ -467,7 +469,7 @@ module.exports = {
                         logger.console.debug("Waiting for parent");
                         const observer = new MutationObserver(mutations => {
                             for (let mutation of mutations) {
-                                if (mutation.type === 'childList') {
+                                if (mutation.type === "childList") {
                                     parent_div = document.querySelector(selector);
                                     if (parent_div) {
                                         observer.disconnect();
@@ -577,7 +579,7 @@ module.exports = {
                     cache_location_button.type = "button";
                     cache_location_button.textContent = "Select";
                     cache_location_button.onclick = async () => {
-                        const result = await ipcRenderer.invoke('song-cache-open-directory-dialog');
+                        const result = await ipcRenderer.invoke("song-cache-open-directory-dialog");
                         if (!result) {
                             logger.console.debug("No directory selected for cache location");
                             return;
@@ -766,7 +768,7 @@ module.exports = {
                             return true;
                         },
                         get: (target, key) => {
-                            if (typeof target[key] === 'object' && target[key] !== null) {
+                            if (typeof target[key] === "object" && target[key] !== null) {
                                 return this.setter_proxy(target[key]); // Ensure nested objects are also proxied
                             }
                             return target[key];
@@ -858,10 +860,10 @@ module.exports = {
         function context_main() {
             "use strict";
 
-            const { ipcMain, dialog } = require('electron');
-            ipcMain.handle('song-cache-open-directory-dialog', async () => {
+            const { ipcMain, dialog } = require("electron");
+            ipcMain.handle("song-cache-open-directory-dialog", async () => {
                 const result = await dialog.showOpenDialog({
-                    properties: ['openDirectory']
+                    properties: ["openDirectory"]
                 });
 
                 if (result.canceled || result.filePaths.length === 0) {

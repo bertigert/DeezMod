@@ -3,8 +3,9 @@ module.exports = {
     description: "Enables dev mode, allowing you to use dev tools with ctrl+shift+i",
     version: "1.0",
     author: "bertigert",
-    context: ["main"],
-    scope: ["own"],
+    context: {
+        main: "own"
+    },
     func: () => {
         function log(...args) {
             console.log("[DevMode]", ...args);

@@ -3,8 +3,9 @@ module.exports = {
     description: "Enable or disable features which may or may not be experimental/web version only.",
     version: "1.0.3",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         "use strict";
         // ======= Settings START =======
@@ -59,12 +60,12 @@ module.exports = {
             const features = resp_json.results.__DZR_GATEKEEPS__;
 
             if (LOG_ALL_FEATURES_DEBUG) {
-                log('All Features:', features, "Special Features:", SPECIAL_FEATURES);
+                log("All Features:", features, "Special Features:", SPECIAL_FEATURES);
             }
 
             for (let feature of Object.entries(DEEZER_CUSTOM_FEATURES)) {
                 features[feature[0]] = feature[1];
-                log(feature[1] ? 'Enabled' : 'Disabled', feature[0]);
+                log(feature[1] ? "Enabled" : "Disabled", feature[0]);
             }
         }
 
@@ -110,7 +111,7 @@ module.exports = {
                     return original_fetch.apply(window, args);
                 }
 
-                debug('Catched user data fetch call');
+                debug("Catched user data fetch call");
 
                 const response = await original_fetch.apply(window, args);
                 const resp_json = await response.json();

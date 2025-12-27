@@ -3,8 +3,10 @@ module.exports = {
     description: "Musixmatch and Custom Lyrics Integration for Deezer Desktop",
     version: "1.0.11",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["loader"], // we need to use node-fetch, so we need to be in the loader scope
+    context: {
+        renderer: "own" // we need to use node-fetch, so we need to be in the loader scope
+    },
+    grant: ["GM_xmlhttpRequest", "unsafeWindow"],
     func: () => {
         // PLEASE NOTE:
         // this completely fucks up the dzplayer.getCurrentSong function, so that it always returns a lyrics id (if there are no lyrics, then the negative Song ID)
@@ -13,8 +15,7 @@ module.exports = {
         //   - beginning right under this line
 
         "use strict";
-        const node_fetch = require("node-fetch");
-        const https_agent = require("https").Agent({ keepAlive: true, maxSockets: 10 });
+        let window = unsafeWindow;
 
         class Logger {
             static LOG_VERY_MANY_THINGS_YES_YES = false; // set to false if you dont want the console getting spammed
@@ -54,9 +55,9 @@ module.exports = {
         }
 
         function format_bytes(bytes, decimals = 2) { // chatgpt
-            if (bytes === 0) return '0 B';
+            if (bytes === 0) return "0 B";
             const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const sizes = ["B", "KB", "MB", "GB", "TB"];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${sizes[i]}`;
         }
@@ -65,7 +66,7 @@ module.exports = {
             return crypto.randomUUID();
         }
         function generate_hex_64bit() {
-            return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16).padStart(16, '0');
+            return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16).padStart(16, "0");
         }
         String.prototype.toTitleCase = function () {
             return this.replace(/\w\S*/g, function (txt) { return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase(); });
@@ -170,7 +171,7 @@ module.exports = {
 
             static async compress_text(str, log=true) {
                 str = str || "";
-                const cs = new CompressionStream('deflate-raw');
+                const cs = new CompressionStream("deflate-raw");
                 const writer = cs.writable.getWriter();
                 const encoded_str = new TextEncoder().encode(str)
                 writer.write(encoded_str);
@@ -181,7 +182,7 @@ module.exports = {
                 return compressed_str;
             }
             static async decompress_text(compressed_bytes) {
-                const ds = new DecompressionStream('deflate-raw');
+                const ds = new DecompressionStream("deflate-raw");
                 const writer = ds.writable.getWriter();
                 writer.write(compressed_bytes);
                 writer.close();
@@ -191,8 +192,8 @@ module.exports = {
 
             // chatgpt more or less
             constructor() {
-                this.db_name = 'lyrics_sync_cache';
-                this.store_name = 'tracks';
+                this.db_name = "lyrics_sync_cache";
+                this.store_name = "tracks";
                 this.max_entries = 10000;
             }
 
@@ -204,11 +205,11 @@ module.exports = {
                         const db = event.target.result;
                         if (!db.objectStoreNames.contains(this.store_name)) {
                             const store = db.createObjectStore(this.store_name, { keyPath: Lyrics_DB.INDEXES.ID }); // using id as key
-                            store.createIndex('added_timestamp', Lyrics_DB.INDEXES.ADDED_TIMESTAMP, { unique: false });
+                            store.createIndex("added_timestamp", Lyrics_DB.INDEXES.ADDED_TIMESTAMP, { unique: false });
                         }
                     };
 
-                    request.onerror = () => reject('Error opening IndexedDB');
+                    request.onerror = () => reject("Error opening IndexedDB");
                     request.onsuccess = (event) => resolve(event.target.result);
                 });
             }
@@ -223,14 +224,14 @@ module.exports = {
 
                 const db = opened_db || await this.open_indexed_db(this.db_name, this.store_name);
 
-                const tx = db.transaction(this.store_name, 'readwrite');
+                const tx = db.transaction(this.store_name, "readwrite");
                 const store = tx.objectStore(this.store_name);
 
                 // check the current number of entries in the store
                 const count_request = store.count();
                 const count = await new Promise((resolve, reject) => {
                     count_request.onsuccess = () => resolve(count_request.result);
-                    count_request.onerror = () => reject('Error counting entries');
+                    count_request.onerror = () => reject("Error counting entries");
                 });
 
                 if (count >= this.max_entries) {
@@ -246,27 +247,27 @@ module.exports = {
             async get_from_indexed_db(id) {
                 const db = await this.open_indexed_db(this.db_name, this.store_name);
 
-                const tx = db.transaction(this.store_name, 'readonly');
+                const tx = db.transaction(this.store_name, "readonly");
                 const store = tx.objectStore(this.store_name);
 
                 const data = await new Promise((resolve, reject) => {
                     const request = store.get(id);
-                    request.onerror = () => reject('Error retrieving data');
+                    request.onerror = () => reject("Error retrieving data");
                     request.onsuccess = () => resolve(request.result);
                 });
 
                 if (!data) {
-                    logger.console.debug('Data not found in cache db');
+                    logger.console.debug("Data not found in cache db");
                     return null;
                 }
 
-                logger.console.debug('Data retrieved successfully from cache db');
+                logger.console.debug("Data retrieved successfully from cache db");
                 return data;
             }
 
             async delete_from_indexed_db(id) {
                 const db = await this.open_indexed_db(this.db_name, this.store_name);
-                const store = db.transaction(this.store_name, 'readwrite').objectStore(this.store_name);
+                const store = db.transaction(this.store_name, "readwrite").objectStore(this.store_name);
                 const delete_request = store.delete(id);
                 await new Promise((resolve, reject) => {
                     delete_request.onsuccess = resolve;
@@ -277,8 +278,8 @@ module.exports = {
             }
 
             async delete_oldest_entry(store) {
-                const index = store.index('added_timestamp');
-                const request = index.openCursor(null, 'next'); // Iterate through entries based on timestamp (ascending)
+                const index = store.index("added_timestamp");
+                const request = index.openCursor(null, "next"); // Iterate through entries based on timestamp (ascending)
 
                 const oldest_entry_id = await new Promise((resolve, reject) => {
                     request.onsuccess = (event) => {
@@ -289,7 +290,7 @@ module.exports = {
                             resolve(null); // no entries to delete
                         }
                     };
-                    request.onerror = () => reject('Error iterating over entries');
+                    request.onerror = () => reject("Error iterating over entries");
                 });
 
                 if (oldest_entry_id) {
@@ -327,13 +328,13 @@ module.exports = {
             async get_full_size() {
                 const db = await this.open_indexed_db(this.db_name, this.store_name);
 
-                const tx = db.transaction(this.store_name, 'readonly');
+                const tx = db.transaction(this.store_name, "readonly");
                 const store = tx.objectStore(this.store_name);
 
                 const entries = await new Promise((resolve, reject) => {
                     const request = store.getAll();
                     request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject('Error retrieving entries');
+                    request.onerror = () => reject("Error retrieving entries");
                 });
 
                 let entry_count_ignoring_null = 0;
@@ -416,7 +417,7 @@ module.exports = {
             constructor() {
                 this.cache = {};
             }
-            
+
             get(song_isrc) {
                 return this.cache[song_isrc] || [null, null, null]; // [type, source, lyrics]
             }
@@ -459,42 +460,54 @@ module.exports = {
 
             async make_request(url) {
                 try {
-                    const response = await node_fetch(url, {
-                        headers: {
-                            cookie: "AWSELB=unknown"
-                        },
-                        agent: https_agent
+                    return new Promise((resolve, reject) => {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: url,
+                            headers: {
+                                "cookie": "AWSELB=unknown",
+                                "Content-Type": "application/json",
+                            },
+                            onload: (response) => {
+                                if (response.status === 200) {
+                                    const data = JSON.parse(response.responseText);
+                                    const header = data.message?.header;
+                                    // logger.console.debug("Got track data for lyric type:", data, "header:", header, "headers:", response.headers);
+
+                                    if (header?.status_code === 401) {
+                                        switch (header.hint) {
+                                            case "renew":
+                                                resolve([this.RESPONSES.INVALID_TOKEN, data]);
+                                                break;
+                                            case "captcha":
+                                                resolve([this.RESPONSES.CAPTCHA_RATELIMIT, data]);
+                                                break;
+                                            default:
+                                                resolve([this.RESPONSES.UNKNOWN, data]);
+                                        }
+                                    }
+                                    else if (header?.status_code === 404) {
+                                        resolve([this.RESPONSES.NOT_FOUND, data]);
+                                    }
+                                    else if (header?.status_code !== 200) {
+                                        resolve([this.RESPONSES.UNKNOWN, data]);
+                                    }
+                                    else {
+                                        resolve([this.RESPONSES.SUCCESS, data]);
+                                    }
+                                }
+                                else {
+                                    resolve([this.RESPONSES.UNKNOWN, null]);
+                                }
+                            },
+                            onerror: (error) => {
+                                console.error("Request failed", error);
+                                resolve([this.RESPONSES.UNKNOWN, null]);
+                            }
+                        });
                     });
-                    if (!response.ok) {
-                        return [this.RESPONSES.UNKNOWN, null];
-                    }
-
-                    const data = await response.json();
-                    const header = data.message?.header;
-                    // logger.console.debug("Got track data for lyric type:", data, "header:", header, "headers:", response.headers);
-
-                    if (header?.status_code === 401) {
-                        switch (header.hint) {
-                            case "renew":
-                                return [this.RESPONSES.INVALID_TOKEN, data];
-                            case "captcha":
-                                return [this.RESPONSES.CAPTCHA_RATELIMIT, data];
-                            default:
-                                return [this.RESPONSES.UNKNOWN, data];
-                        }
-                    }
-
-                    if (header?.status_code === 404) {
-                        return [this.RESPONSES.NOT_FOUND, data];
-                    }
-
-                    if (header?.status_code !== 200) {
-                        return [this.RESPONSES.UNKNOWN, data];
-                    }
-
-                    return [this.RESPONSES.SUCCESS, data];
-                } catch (error) {
-                    logger.console.error("Error in make_request:", error);
+                } catch (e) {
+                    logger.console.error("Error in make_request:", e);
                     return [this.RESPONSES.UNKNOWN, null];
                 }
             }
@@ -726,8 +739,8 @@ module.exports = {
                 const parsed_lyrics = [];
                 for (let line of data) {
                     for (let word of line.words) {
-                        const start_time_lrc = `[${String(Math.floor(word.start/60000)).padStart(2, '0')}:${String(Math.floor(word.start/1000)%60).padStart(2, '0')}.${String(Math.floor(word.start%1000)).padStart(3, '0')}]`
-                        const end_time_lrc = `[${String(Math.floor(word.end/60000)).padStart(2, '0')}:${String(Math.floor(word.end/1000)%60).padStart(2, '0')}.${String(Math.floor(word.end%1000)).padStart(3, '0')}]`
+                        const start_time_lrc = `[${String(Math.floor(word.start/60000)).padStart(2, "0")}:${String(Math.floor(word.start/1000)%60).padStart(2, "0")}.${String(Math.floor(word.start%1000)).padStart(3, "0")}]`
+                        const end_time_lrc = `[${String(Math.floor(word.end/60000)).padStart(2, "0")}:${String(Math.floor(word.end/1000)%60).padStart(2, "0")}.${String(Math.floor(word.end%1000)).padStart(3, "0")}]`
                         const lrc = `${start_time_lrc}-${end_time_lrc}${word.word} `;
                         parsed_lyrics.push(lrc.trim());
                     }
@@ -782,8 +795,8 @@ module.exports = {
                         if (line.l[i].c.trim() === "") continue;
                         const start_time_ms = Math.floor((start_time_s+line.l[i].o)*1000);
                         const end_time_ms = (i === line.l.length-1) ? Math.floor(line.te*1000) : Math.floor((start_time_s+line.l[i+1].o)*1000);
-                        const start_time_lrc = `[${String(Math.floor(start_time_ms/60000)).padStart(2, '0')}:${String(Math.floor(start_time_ms/1000)%60).padStart(2, '0')}.${String(Math.floor(start_time_ms%1000)).padStart(3, '0')}]`
-                        const end_time_lrc = `[${String(Math.floor(end_time_ms/60000)).padStart(2, '0')}:${String(Math.floor(end_time_ms/1000)%60).padStart(2, '0')}.${String(Math.floor(end_time_ms%1000)).padStart(3, '0')}]`
+                        const start_time_lrc = `[${String(Math.floor(start_time_ms/60000)).padStart(2, "0")}:${String(Math.floor(start_time_ms/1000)%60).padStart(2, "0")}.${String(Math.floor(start_time_ms%1000)).padStart(3, "0")}]`
+                        const end_time_lrc = `[${String(Math.floor(end_time_ms/60000)).padStart(2, "0")}:${String(Math.floor(end_time_ms/1000)%60).padStart(2, "0")}.${String(Math.floor(end_time_ms%1000)).padStart(3, "0")}]`
                         const lrc = `${start_time_lrc}-${end_time_lrc}${line.l[i].c}`;
                         parsed_lyrics.push(lrc);
                     }
@@ -869,7 +882,7 @@ module.exports = {
 
                         // ===== REAL HOOK START =====
 
-                        logger.console.debug('Catched original lyrics fetch call');
+                        logger.console.debug("Catched original lyrics fetch call");
 
                         const current_song = dzPlayer.getCurrentSong();
                         let resp_json = {
@@ -923,7 +936,7 @@ module.exports = {
                         const current_song_isrc = current_song.ISRC;
                         const response = await orig_fetch.apply(this, args);
                         const real_resp_json = await response.json();
-                        
+
                         const original_deezer_response = JSON.parse(JSON.stringify(real_resp_json));
 
                         const which_deezer_lyric_type = Deezer.which_lyric_type(real_resp_json);
@@ -999,10 +1012,10 @@ module.exports = {
 
                             if (which_musixmatch_lyric_type !== musixmatch.TYPES.NONE && which_deezer_lyric_type >= which_musixmatch_lyric_type) { // enum is sorted by hierarchy
                                 logger.console.debug("Deezer has equal/better lyrics than musixmatch, using them");
-                                
+
                                 const deezer_lyrics = Deezer.get_lyrics_from_response(resp_json, which_deezer_lyric_type);
                                 lyrics_info_cache.set(current_song_isrc, which_deezer_lyric_type, Lyrics_Info_Cache.MV.SOURCE.DEEZER, await Lyrics_DB.compress_text(deezer_lyrics));
-                                
+
                                 await lyrics_db.save_to_indexed_db(current_song_isrc, Date.now(), null, musixmatch.TYPES.NONE); // we save it as none, because we dont want to fetch the musixmatch track info again
                             }
                             else if (which_musixmatch_lyric_type === musixmatch.TYPES.NONE) { // neither deezer nor musixmatch has lyrics, so we only update the cache timestampt, in case lyrics were there
@@ -1024,7 +1037,7 @@ module.exports = {
                                         const lyrics = JSON.parse(data.message.body.richsync.richsync_body);
                                         const parsed_lyrics = Lyrics_Parser.musixmatch_word_by_word_to_deezer_word_by_word(lyrics);
                                         compressed_lyrics = await Lyrics_DB.compress_text(Lyrics_Parser.deezer_word_by_word_to_custom_lrc(parsed_lyrics));
-                                        lyrics_info_cache.set(current_song_isrc, musixmatch.TYPES.WORD_BY_WORD, Lyrics_Info_Cache.MV.SOURCE.MUSIXMATCH, compressed_lyrics); 
+                                        lyrics_info_cache.set(current_song_isrc, musixmatch.TYPES.WORD_BY_WORD, Lyrics_Info_Cache.MV.SOURCE.MUSIXMATCH, compressed_lyrics);
                                         resp_json.data.track.lyrics.synchronizedWordByWordLines = parsed_lyrics;
                                         resp_json.data.track.lyrics.writers += (resp_json.data.track.lyrics.writers ? " | " : "") + "Word by Word Lyrics by Musixmatch";
                                     }
@@ -1145,7 +1158,7 @@ module.exports = {
                     logger.console.debug("Waiting for parent");
                     const observer = new MutationObserver(mutations => {
                         for (let mutation of mutations) {
-                            if (mutation.type === 'childList') {
+                            if (mutation.type === "childList") {
                                 parent_div = document.querySelector("#page_player > div > div.chakra-button__group")
                                 if (parent_div) {
                                     observer.disconnect();
@@ -1330,7 +1343,7 @@ module.exports = {
                 container.className = "lyrics_sync_custom_lyrics_container lyrics_sync_hidden";
 
                 const title_span = this._Element_Factory.create_span(
-                    "Custom Lyrics", 
+                    "Custom Lyrics",
                     "Use custom lyrics, synced or not. Custom Lyrics are unaffected by cache restrictions (expiration, max track limit). Click to open the documentation.",
                     2
                 );
@@ -1539,7 +1552,7 @@ module.exports = {
                         [type, source, lyrics] = await lyrics_info_cache.get(isrc);
                     }
                     isrc_span.textContent = isrc;
-                    
+
                     if (lyrics) {
                         has_lyrics_span.textContent = "Yes";
                         has_lyrics_span.textContent += " (" + Lyrics_Info_Cache.MV.STR_MAP.TYPE[type] + ")";
@@ -2066,7 +2079,7 @@ module.exports = {
                         return true;
                     },
                     get: (target, key) => {
-                        if (typeof target[key] === 'object' && target[key] !== null) {
+                        if (typeof target[key] === "object" && target[key] !== null) {
                             return this.setter_proxy(target[key]); // Ensure nested objects are also proxied
                         }
                         return target[key];

@@ -3,8 +3,9 @@ module.exports = {
     description: "Blacklists songs from being played in deezer",
     version: "1.1.1",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         "use strict";
         class Logger {
@@ -362,7 +363,7 @@ module.exports = {
                     logger.console.debug("Waiting for parent");
                     const observer = new MutationObserver(mutations => {
                         for (let mutation of mutations) {
-                            if (mutation.type === 'childList') {
+                            if (mutation.type === "childList") {
                                 parent_div = document.querySelector(selector);
                                 if (parent_div) {
                                     observer.disconnect();
@@ -581,7 +582,7 @@ module.exports = {
                         return true;
                     },
                     get: (target, key) => {
-                        if (typeof target[key] === 'object' && target[key] !== null) {
+                        if (typeof target[key] === "object" && target[key] !== null) {
                             return this.setter_proxy(target[key]); // Ensure nested objects are also proxied
                         }
                         return target[key];

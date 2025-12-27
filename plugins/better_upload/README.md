@@ -1,1 +1,0 @@
-Install by downloading the js file and the deps folder and put both in the plugins folder.

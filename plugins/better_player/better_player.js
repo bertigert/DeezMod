@@ -3,8 +3,9 @@ module.exports = {
     description: "QoL improvements for the Deezer player(bar)",
     version: "1.0.3",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: main
 }
 

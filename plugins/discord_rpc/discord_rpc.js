@@ -3,8 +3,9 @@ module.exports = {
     description: "Adds a game activity for discord",
     version: "1.0",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         const LOG_DEBUG = false;
         
@@ -137,7 +138,7 @@ module.exports = {
             retry();
         }
 
-        const CLIENT_ID = '1258131430928547880'; // https://github.com/JustYuuto/deezer-discord-rpc/, nom nom nom :D
+        const CLIENT_ID = "1258131430928547880"; // https://github.com/JustYuuto/deezer-discord-rpc/, nom nom nom :D
         let client_logged_in = false; 
         let discord_rpc;
         try {

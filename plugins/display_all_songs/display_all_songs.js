@@ -3,8 +3,9 @@ module.exports = {
     description: "Lists ALL releases at the artist page, not just hand picked ones by deezer.",
     version: "1.0.2",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         class Logger {
             static PREFIX = "[Display All Songs]";
@@ -51,7 +52,7 @@ module.exports = {
 
                         const operation_name = args[1].body.match(/"operationName":\s*"(.*?)"/);
                         if (operation_name && operation_name[1] === "ArtistDiscographyByType") {
-                            // logger.debug('Caught original artist page fetch call');
+                            // logger.debug("Caught original artist page fetch call");
                             args[1].body = args[1].body.replace(/"subType":\s*"(.*?)"/, '"subType": null')
                                                         .replace(/"mode":\s*"(.*?)"/, '"mode": "ALL"');
                         }

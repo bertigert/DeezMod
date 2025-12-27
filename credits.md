@@ -1,0 +1,2 @@
+- https://github.com/sindresorhus/env-paths - for the paths.js as I have no clue about mac
+- https://violentmonkey.github.io/ - userscript compat layer based on this

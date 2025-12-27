@@ -3,11 +3,12 @@ module.exports = {
     description: "Makes the volume slider exponential for easier adjustment of lower volumes.",
     version: "1.0",
     author: "Kotaless",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         // Port of https://greasyfork.org/en/scripts/487324-youtube-volume-fixer
-        'use strict';
+        "use strict";
 
         function log(...args) {
             console.log("[Volume Fixer]", ...args);
@@ -16,9 +17,9 @@ module.exports = {
         const EXPONENT = 2;
 
         const storedOriginalVolumes = new WeakMap();
-        const { get, set } = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume');
+        const { get, set } = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "volume");
 
-        Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
+        Object.defineProperty(HTMLMediaElement.prototype, "volume", {
             get() {
                 const lowVolume = get.call(this);
                 const calculatedOriginalVolume = lowVolume ** (1 / EXPONENT);

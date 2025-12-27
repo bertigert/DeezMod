@@ -3,12 +3,19 @@ module.exports = {
     description: "Enhances the process of uploading mp3 files to Deezer by providing a better UI and handling for uploads.",
     version: "1.0.2",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
+    require: [{
+        url: "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js",
+        hash: "be35f7bc7d621235ea29fdca791763e3fb8002edf3bbfa7bda273df4232b0925",
+        alg: "sha256",
+        context: ["renderer"]
+    }],
     func: (context) => {
         "use strict";
 
-        const jsmediatags = window.jsmediatags || require("./deps/jsmediatags3.9.5.min.js");
+        const jsmediatags = window.jsmediatags;
 
         class Logger {
             static LOG_VERY_MANY_THINGS_YES_YES = true; // set to false if you dont want the console getting spammed
@@ -448,7 +455,7 @@ module.exports = {
                     logger.console.debug("Waiting for parent");
                     const observer = new MutationObserver(mutations => {
                         for (let mutation of mutations) {
-                            if (mutation.type === 'childList') {
+                            if (mutation.type === "childList") {
                                 parent = document.querySelector(selector);
                                 if (parent) {
                                     observer.disconnect();
@@ -567,7 +574,7 @@ module.exports = {
                 info_container.append(progress_bar, info_header, info_list, status_element.container);
 
                 const orig_upload_input = toolbar.querySelector("input[data-testid='upload-file']");
-                const react_fiber_key = Object.keys(orig_upload_input).find(key => key.startsWith('__reactFiber$'));
+                const react_fiber_key = Object.keys(orig_upload_input).find(key => key.startsWith("__reactFiber$"));
                 const orig_upload_onsuccess = orig_upload_input[react_fiber_key].return.dependencies.firstContext.memoizedValue.onSuccess;
 
                 // replace original upload input with our own
@@ -898,7 +905,7 @@ module.exports = {
                         return true;
                     },
                     get: (target, key) => {
-                        if (typeof target[key] === 'object' && target[key] !== null) {
+                        if (typeof target[key] === "object" && target[key] !== null) {
                             return this.setter_proxy(target[key]); // Ensure nested objects are also proxied
                         }
                         return target[key];

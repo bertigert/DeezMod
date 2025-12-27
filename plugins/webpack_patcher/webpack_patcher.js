@@ -3,8 +3,9 @@ module.exports = {
     description: "Library script to patch the code of webpack modules at runtime. Exposes a global register_webpack_patches function.",
     version: "2.0.3",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         "use strict";
         
@@ -171,7 +172,7 @@ module.exports = {
              * @returns {boolean} True if value matches identifier
              */
             _matches_identifier(value, identifier) {
-                if (typeof identifier === 'string') {
+                if (typeof identifier === "string") {
                     return value.includes(identifier);
                 } else if (identifier instanceof RegExp) {
                     return identifier.test(value);
@@ -256,7 +257,7 @@ module.exports = {
                         }
 
                         const stack = new Error().stack;
-                        const stack_lines = stack?.split('\n') || [];
+                        const stack_lines = stack?.split("\n") || [];
 
                         if (self.filter_func && !self.filter_func(this, stack_lines)) {
                             return;
@@ -293,7 +294,7 @@ module.exports = {
                         }
 
                         const stack = new Error().stack;
-                        const stack_lines = stack?.split('\n') || [];
+                        const stack_lines = stack?.split("\n") || [];
 
                         if (self.filter_func && !self.filter_func(this, stack_lines)) {
                             return;
@@ -305,7 +306,7 @@ module.exports = {
                         self.logger.debug(`Detected webpack module factory assignment (with ${module_count} modules)`);
                         self.webpack_require = this;
 
-                        self._emit_event('webpack_detected', this, module_factories);
+                        self._emit_event("webpack_detected", this, module_factories);
 
                         if (self.on_detect) {
                             try {
@@ -326,7 +327,7 @@ module.exports = {
                                 //     self.logger.warn(`Module ${module_id} registered ${count} times (possible HMR or duplicate registration)`);
                                 // }
 
-                                self._emit_event('module_registered', module_id, factory);
+                                self._emit_event("module_registered", module_id, factory);
 
                                 // intercept execution using helper
                                 const factory_proxy = self._create_factory_proxy(module_id, factory);
@@ -451,7 +452,7 @@ module.exports = {
                 if (any_patches_applied) {
                     current_factory[WebpackPatcher.SYM_ORIGINAL_FACTORY] = factory;
                     this.module_factories[module_id] = current_factory;
-                    this._emit_event('module_patched', module_id, current_factory, factory);
+                    this._emit_event("module_patched", module_id, current_factory, factory);
                 }
                 
                 this.patched_modules.add(module_id);
@@ -490,7 +491,7 @@ module.exports = {
                         const { match, replace, global } = match_and_replacement;
                         const func = global || (match instanceof RegExp && match.global) ? "replaceAll" : "replace";
                         
-                        if (typeof replace === 'function') {
+                        if (typeof replace === "function") {
                             patched_code = patched_code[func](match, (...args) => {
                                 replacement_occurred = true;
                                 return replace(...args);
@@ -754,18 +755,18 @@ module.exports = {
              * - module_patched: (module_id, patched_factory, original_factory) => void
              * 
              * @example
-             * WebpackPatcher.addEventListener('webpack_detected', (wreq, factories) => {
-             *     console.log('Webpack detected!', wreq);
+             * WebpackPatcher.addEventListener("webpack_detected", (wreq, factories) => {
+             *     console.log("Webpack detected!", wreq);
              * });
              * 
              * @example
-             * WebpackPatcher.addEventListener('module_registered', (module_id, factory) => {
-             *     console.log('Module registered:', module_id);
+             * WebpackPatcher.addEventListener("module_registered", (module_id, factory) => {
+             *     console.log("Module registered:", module_id);
              * });
              * 
              * @example
-             * WebpackPatcher.addEventListener('module_patched', (module_id, patched, original) => {
-             *     console.log('Module patched:', module_id);
+             * WebpackPatcher.addEventListener("module_patched", (module_id, patched, original) => {
+             *     console.log("Module patched:", module_id);
              * });
              */
             add_event_listener(event, callback) {
@@ -773,7 +774,7 @@ module.exports = {
                     this.patcher.add_event_listener(event, callback);
                 } else {
                     this.event_listener_buffer.push({ event, callback });
-                    console.debug("[WebpackPatcher]", `Buffered event listener for '${event}' (patcher not yet initialized, total buffered: ${this.event_listener_buffer.length})`);
+                    console.debug("[WebpackPatcher]", `Buffered event listener for "${event}" (patcher not yet initialized, total buffered: ${this.event_listener_buffer.length})`);
                 }
             }
 

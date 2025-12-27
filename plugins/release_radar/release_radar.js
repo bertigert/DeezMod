@@ -3,8 +3,9 @@ module.exports = {
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
     version: "1.2.12",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         // Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application
         // TODO:
@@ -15,7 +16,7 @@ module.exports = {
 
         "use strict";
 
-        const DEBUG_MODE = true;
+        const DEBUG_MODE = false;
 
         function debug(...args) {
             if (DEBUG_MODE) console.debug("[Deezer Release Radar]", ...args);
@@ -504,7 +505,7 @@ module.exports = {
 
         function ajax_load(path) {
             const home_button = document.querySelector("#dzr-app div[role='group'] a.chakra-link:has(>svg[data-testid^='House']");
-            const react_fiber_key = Object.keys(home_button).find(key => key.startsWith('__reactFiber$'));
+            const react_fiber_key = Object.keys(home_button).find(key => key.startsWith("__reactFiber$"));
             const deezer_ajax_history = home_button[react_fiber_key].return.return.dependencies.firstContext.memoizedValue.history; // there is probably an even easier way to get to the history function
             deezer_ajax_history.push(path);
         }
@@ -684,11 +685,11 @@ module.exports = {
 
         function singularize(word) { // https://stackoverflow.com/questions/57429677/javascript-make-a-word-singular-singularize
             const endings = {
-                es: 'e',
-                s: ''
+                es: "e",
+                s: ""
             };
             return word.replace(
-                new RegExp(`(${Object.keys(endings).join('|')})$`, "i"),
+                new RegExp(`(${Object.keys(endings).join("|")})$`, "i"),
                 r => endings[r]
             );
         }
@@ -1734,8 +1735,8 @@ module.exports = {
                     null, null,
                     "span 2"
                 )).button_setting("\u2913", async () => {
-                    const has_clipboard = await navigator.permissions.query({ name: 'clipboard-read' })
-                    if (has_clipboard.state === 'granted' || has_clipboard.state === 'prompt') {
+                    const has_clipboard = await navigator.permissions.query({ name: "clipboard-read" })
+                    if (has_clipboard.state === "granted" || has_clipboard.state === "prompt") {
                         try {
                             const new_config = JSON.parse(await navigator.clipboard.readText());
                             set_config(new_config);
@@ -1843,7 +1844,7 @@ module.exports = {
                 debug("Waiting for parent");
                 const observer = new MutationObserver(mutations => {
                     for (let mutation of mutations) {
-                        if (mutation.type === 'childList') {
+                        if (mutation.type === "childList") {
                             parent_div = document.body.querySelector("#page_topbar");
                             if (parent_div) {
                                 observer.disconnect();

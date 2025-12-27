@@ -3,8 +3,9 @@ module.exports = {
     description: "Makes editing the queue in flow possible.",
     version: "1.0.3",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         "use strict";
         

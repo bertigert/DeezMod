@@ -3,8 +3,11 @@ module.exports = {
     description: "Sets the title of the titlebar to the current song info so that you can see it in the app preview.",
     version: "1.0.0",
     author: "bertigert",
-    context: ["main", "renderer", "titlebar"],
-    scope: ["own", "main", "own"],
+    context: {
+        main: "own",
+        renderer: "own",
+        titlebar: "own"
+    },
     func: (context) => {
         // ========== SETTINGS START ==========
         // Modes:
@@ -89,7 +92,7 @@ module.exports = {
                         return album_title;
                     case "length":
                         const minutes = Math.floor(duration / 60);
-                        const seconds = (duration % 60).toString().padStart(2, '0');
+                        const seconds = (duration % 60).toString().padStart(2, "0");
                         return `${minutes}:${seconds}`;
                 } 
             }
@@ -240,7 +243,7 @@ module.exports = {
                 ipcRenderer.send("better-title-renderer-title-changed", format_title());
             });
             
-            title_observer.observe(document.querySelector('title'), {
+            title_observer.observe(document.querySelector("title"), {
                 childList: true
             });
 

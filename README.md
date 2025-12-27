@@ -30,8 +30,8 @@ The installer downloads the patched app.asar and installs it automatically. You 
 2. Place plugins in your plugin folder
 
 ## Usage
-Place plugins inside of your plugin folder. They need to follow this [structure](https://github.com/bertigert/DeezMod/blob/main/docs/creating_plugins.md#plugin-structure).
-Userscripts can be pretty easily ported to the desktop app if they are not too reliant on the functions of the userscript managers.\
+Place plugins inside of your plugin folder. Any .js file in the top level of that folder is treated as a plugin. Nested files are ignored (e.g. dependencies). They need to follow this [structure](https://github.com/bertigert/DeezMod/blob/main/docs/creating_plugins.md#plugin-structure).
+Userscripts can be pretty easily ported to the desktop app.
 See example plugins [here](https://github.com/bertigert/DeezMod/tree/main/plugins)
 
 ### Plugin Folder Location

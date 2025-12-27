@@ -3,8 +3,9 @@ module.exports = {
     description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bertigert/Deezer-Artist-Dumper",
     version: "1.4.9",
     author: "bertigert",
-    context: ["renderer"],
-    scope: ["own"],
+    context: {
+        renderer: "own"
+    },
     func: () => {
         // port of https://github.com/bertigert/Deezer-Artist-Dumper
         function set_css() {
@@ -608,13 +609,13 @@ module.exports = {
         }
 
         function download_file(data, name) {
-            const link = document.createElement('a');
+            const link = document.createElement("a");
             link.download = name;
 
             if (typeof(data) === "object") {
                 data = JSON.stringify(data, null, 4)
             }
-            const blob = new Blob([data], { type: 'application/json' });
+            const blob = new Blob([data], { type: "application/json" });
             link.href = URL.createObjectURL(blob);
 
             document.body.appendChild(link);
@@ -1058,14 +1059,14 @@ module.exports = {
             export_btn.title = "Export regexes";
             export_btn.textContent = "⤒";
             export_btn.onclick = () => {
-                const formatted_time = (new Date()).toLocaleString('sv-SE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                }).replaceAll("-", "").replaceAll(':', '').replace(" ", "_");
+                const formatted_time = (new Date()).toLocaleString("sv-SE", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                }).replaceAll("-", "").replaceAll(":", "").replace(" ", "_");
 
                 download_file(config.regexes, `artistdump_regexes_${formatted_time}.json`);
             };
@@ -1131,7 +1132,7 @@ module.exports = {
             }
 
 
-            const opts = [document.createElement('option'), document.createElement('option')];
+            const opts = [document.createElement("option"), document.createElement("option")];
             opts[0].textContent = "Release Date";
             opts[1].textContent = "Popularity";
 
@@ -1167,7 +1168,7 @@ module.exports = {
             input.className = "artist_dumper_searchbar";
             input.oninput = (e) => {
                 for (let playlist of playlists) {
-                    playlist_ul.querySelector(`button[data-id='${playlist.PLAYLIST_ID}']`).style.display = playlist.TITLE.toLowerCase().includes(input.value.toLowerCase()) ? "" : "none";
+                    playlist_ul.querySelector(`button[data-id="${playlist.PLAYLIST_ID}"]`).style.display = playlist.TITLE.toLowerCase().includes(input.value.toLowerCase()) ? "" : "none";
                 }
             }
             return input;
@@ -1319,14 +1320,14 @@ module.exports = {
             download_btn.title = "Download data for this dump.";
             download_btn.style.marginTop = "1px";
             download_btn.onclick = () => {
-                const formatted_time = time.toLocaleString('sv-SE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                }).replaceAll("-", "").replaceAll(':', '').replace(" ", "_");
+                const formatted_time = time.toLocaleString("sv-SE", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                }).replaceAll("-", "").replaceAll(":", "").replace(" ", "_");
 
                 download_file(data, `artistdump_${get_current_artist_name().replaceAll(" ", "-")}_${formatted_time}.json`);
             }
@@ -1401,7 +1402,7 @@ module.exports = {
             } else {
                 const observer = new MutationObserver(mutations => {
                     for (let mutation of mutations) {
-                        if (mutation.type === 'childList') {
+                        if (mutation.type === "childList") {
                             main_ul = document.querySelector("#page_naboo_artist > div.container > div > ul[role='group']");
                             if (main_ul) {
                                 observer.disconnect();
