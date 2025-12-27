@@ -1,19 +1,16 @@
 @echo off
+setlocal
 
 set "install_path="
 if exist "%~dp0\app.asar" (
-    if not exist "%~dp0\Deezer.exe" (
-        echo Installation found on the same level as the installer.
-        choice /c yn /m "Use this directory? "
-        if errorlevel 2 goto check_local_app
-        set "install_path=%~dp0"
+    if exist "%~dp0\Deezer.exe" (
+        echo It seems you dropped the installer into the main folder, not the resources folder.
+        choice /c yn /m "Use the directory at %~dp0resources? "
+        if not errorlevel 2 set "install_path=%~dp0resources"
     ) else (
-        if exist "%~dp0\resources\app.asar" (
-            echo It seems like you dropped the installer into the main folder of the Deezer installation, not the resources folder. This does not really matter, just wanted to let you know.
-            choice /c yn /m "Use the directory at %~dp0resources? "
-            if errorlevel 2 goto check_local_app
-            set "install_path=%~dp0\resources"
-        )
+        echo Installation found in the current directory.
+        choice /c yn /m "Use this directory? "
+        if not errorlevel 2 set "install_path=%~dp0"
     )
 )
 
@@ -22,55 +19,57 @@ if "%install_path%"=="" (
     if exist "%localappdata%\Programs\deezer-desktop\resources\app.asar" (
         echo Installation found at %localappdata%\Programs\deezer-desktop\resources
         choice /c yn /m "Use this directory? "
-        if errorlevel 2 goto specify_install_path
-        set "install_path=%localappdata%\Programs\deezer-desktop\resources"
+        if errorlevel 1 if not errorlevel 2 set "install_path=%localappdata%\Programs\deezer-desktop\resources"
     )
 )
 
 :specify_install_path
 if "%install_path%"=="" (
-    set /p "install_path=No installation found, please specify a path (the path where the app.asar is located, probably ending with \resources), no quotes: "
+    set /p "install_path=No installation found, please enter the path to the 'resources' folder (no quotes): "
 )
+
 if not exist "%install_path%" (
-    echo Path is invalid
+    echo Path is invalid or does not exist.
     goto :end
 )
 
 :normal_mode
 echo.
-echo Downloading prepacked app.asar
+echo Downloading patched app.asar...
 echo.
 
-curl -s -L -o "%tmp%\app_patched.asar.zip" https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip
-if not exist "%tmp%\app_patched.asar.zip" (
-    echo Failed to download app.asar zip
+set "download_url=https://github.com/bertigert/DeezMod/releases/latest/download/app.asar"
+curl -s -L -o "%install_path%\app.asar.new" "%download_url%"
+
+if not exist "%install_path%\app.asar.new" (
+    echo [ERROR] Failed to download app.asar. Check your internet connection or the URL: %download_url%
+    goto :end
 )
 
-echo Extracting app.asar
-tar -xf "%tmp%\app_patched.asar.zip" -C %install_path%\
+echo Replacing app.asar...
+if exist "%install_path%\app.asar" (
+    move /y "%install_path%\app.asar" "%install_path%\app.asar.bak" >nul
+)
+move /y "%install_path%\app.asar.new" "%install_path%\app.asar" >nul
+
 if errorlevel 1 (
-	echo Failed to extract app.asar zip
+    echo [ERROR] Could not replace app.asar. Make sure Deezer is closed!
+    goto :end
 )
-del "%tmp%\app_patched.asar.zip" >nul
-
-goto :create_plugins_folder
+echo Patched. Also created a backup of the original app.asar at %install_path%\app.asar.bak.
 
 
 :create_plugins_folder
 echo.
 if not exist "%localappdata%\DeezMod\Data\plugins" (
-    echo Creating plugins folder
+    echo Creating plugins folder at %localappdata%\DeezMod\Data\plugins...
     md "%localappdata%\DeezMod\Data\plugins"
 )
-goto :end
 
 :end
-if exist "%tmp%\app_patched.asar.zip" (
-	del "%tmp%\app_patched.asar.zip" >nul
-)
+if exist "%install_path%\app.asar.new" del "%install_path%\app.asar.new"
 
-set "install_path="
 echo.
-echo Finished, exiting
+echo Finished!
 echo.
 pause

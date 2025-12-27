@@ -36,7 +36,6 @@ jobs:
       
       - name: Zip files
         run: |
-          zip app.asar.zip app.asar
           cd source/build/
           zip ../../patched_source.zip main.js preload.js renderer.js titlebar.js DeezMod/*
 
@@ -56,7 +55,7 @@ jobs:
           name: 'Release v${{ env.DEEZMOD_VERSION }}'
           body: "Release for Deezer version ${{ env.DEEZER_VERSION }}"
           files: |
-            ./app.asar.zip
+            ./app.asar
             ./patched_source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
