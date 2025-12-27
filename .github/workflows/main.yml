@@ -1,5 +1,4 @@
-name: Update release on source change
-
+name: Update release
 on:
   # push:
   #   paths:
