@@ -1,0 +1,20 @@
+{
+  "name": "lyrics_sync",
+  "version": "1.0.0",
+  "description": "If it doesn't work, make sure you are at least on Deezer version ~7.0.31. Word by Word Lyrics only got added in about that version.",
+  "main": "lyrics_sync.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "kuroshiro": "^1.2.0",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.2"
+  }
+}
