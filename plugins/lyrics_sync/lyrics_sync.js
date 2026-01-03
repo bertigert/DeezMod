@@ -4,16 +4,10 @@ module.exports = {
     version: "1.0.11",
     author: "bertigert",
     context: {
-        renderer: "own" // we need to use node-fetch, so we need to be in the loader scope
+        renderer: "own"
     },
     grant: ["GM_xmlhttpRequest", "unsafeWindow"],
     func: () => {
-        // PLEASE NOTE:
-        // this completely fucks up the dzplayer.getCurrentSong function, so that it always returns a lyrics id (if there are no lyrics, then the negative Song ID)
-        // differences between userscript and desktop plugin:
-        //   - make_request
-        //   - beginning right under this line
-
         "use strict";
         let window = unsafeWindow;
 
