@@ -1,11 +1,10 @@
 # Create plugins
-Creating plugins is not streamlined at all. This injection method is more a way to port userscripts designed for browser to the desktop application. Some things need to be changed for that.
+Creating plugins is not streamlined at all. This injection method is more a way to port userscripts designed for the browser to the desktop application. Some things need to be changed for that.
 
 ## Plugin location
-(Windows) Plugins are located at 
-```
-%localappdata%\DeezMod\Data\plugins
-```
+- Windows: `%localappdata%\DeezMod\Data\plugins`
+- macOS: `~/Library/Application Support/DeezMod/plugins`
+- Linux: `~/.local/share/DeezMod/plugins`
 
 ## Plugin structure
 A plugin has the following structure
@@ -102,7 +101,9 @@ grant: [
 
 ## Userscript Compatibility Layer
 DeezMod includes a compatibility layer for userscripts. This means you can port almost every userscript over and it should work the same as in the Web. It was mostly based on Violentmonkey 2.31.0 and a bit of Tampermonkey.
-I cannot guarantee 100% same behaviour. 
+I cannot guarantee 100% same behaviour.
+
+The layer is not available in the main process in any scope and in any process in the loader scope.
 
 The entirety of https://violentmonkey.github.io/ has been ported over:
 - Sandboxing
