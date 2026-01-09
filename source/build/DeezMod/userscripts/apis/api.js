@@ -30,8 +30,8 @@ const {
 } = require("./GM/clipboard.js");
 
 const {
-    GM_xmlhttpRequest, GM_xmlhttpRequest_async,
-    GM_download, GM_download_async
+    xmlhttpRequest, xmlhttpRequest_async,
+    download, download_async
 } = require("./GM/requests.js");
 const { openInTab } = require("./GM/external.js");
 
@@ -73,10 +73,10 @@ const grant_map = {
     "GM.notification": notification,
     "GM_setClipboard": setClipboard,
     "GM.setClipboard": setClipboard,
-    "GM_xmlhttpRequest": GM_xmlhttpRequest,
-    "GM.xmlHttpRequest": GM_xmlhttpRequest_async,
-    "GM_download": GM_download,
-    "GM.download": GM_download_async,
+    "GM_xmlhttpRequest": xmlhttpRequest,
+    "GM.xmlHttpRequest": xmlhttpRequest_async,
+    "GM_download": download,
+    "GM.download": download_async,
     "GM_openInTab": openInTab,
     "GM.openInTab": openInTab,
 };

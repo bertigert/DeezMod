@@ -63,8 +63,8 @@ function download_async(plugin, url, name) {
 
 
 module.exports = {
-    GM_xmlhttpRequest: xmlhttpRequest,
-    GM_xmlhttpRequest_async: xmlhttpRequest_async,
-    GM_download: download,
-    GM_download_async: download_async
+    xmlhttpRequest: xmlhttpRequest,
+    xmlhttpRequest_async: xmlhttpRequest_async,
+    download: download,
+    download_async: download_async
 };
