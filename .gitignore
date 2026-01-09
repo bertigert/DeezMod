@@ -4,13 +4,13 @@
 /*un.bat
 /*ct.bat
 /*links.bat
-old/
-source/build/EDITED_*
+/old/
+/source/build/EDITED_*
 
 /test.js
 /plugins/test*
 
-.github/ins*
+/.github/ins*
 
-plugins/volume_booster
-plugins/offline_mode
+/plugins/volume_booster
+/plugins/offline_mode
