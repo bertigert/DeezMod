@@ -4,13 +4,18 @@
 /*un.bat
 /*ct.bat
 /*links.bat
+
+# Build artifacts
 /old/
 /source/build/EDITED_*
 
+# Test files
 /test.js
 /plugins/test*
 
+# insights
 /.github/ins*
 
+# Dev plugins
 /plugins/volume_booster
 /plugins/offline_mode
