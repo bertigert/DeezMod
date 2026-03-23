@@ -60,10 +60,11 @@ echo Patched. Also created a backup of the original app.asar at %install_path%\a
 
 
 :create_plugins_folder
+set plugin-folder="%localappdata%\DeezMod\Data\plugins"
 echo.
-if not exist "%localappdata%\DeezMod\Data\plugins" (
-    echo Creating plugins folder at %localappdata%\DeezMod\Data\plugins...
-    md "%localappdata%\DeezMod\Data\plugins"
+if not exist plugin-folder (
+    echo Creating plugins folder at %plugin-folder%...
+    md plugin-folder
 )
 
 :end
@@ -74,7 +75,7 @@ echo Finished!
 
 choice /c yn /m "Would you like to open the plugins folder? "
 if not errorlevel 2 (
-    explorer "%localappdata%\DeezMod\Data\plugins"
+    explorer plugin-folder
 )
 
 echo.
