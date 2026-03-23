@@ -71,5 +71,11 @@ if exist "%install_path%\app.asar.new" del "%install_path%\app.asar.new"
 
 echo.
 echo Finished!
+
+choice /c yn /m "Would you like to open the plugins folder? "
+if not errorlevel 2 (
+    explorer "%localappdata%\DeezMod\Data\plugins"
+)
+
 echo.
 pause
