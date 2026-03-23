@@ -10,9 +10,9 @@ To create a new plugin, run the following command from the root of the DeezMod p
 node create_plugin.js your_plugin_name
 ```
 
-This will create a new folder `your_plugin_name` inside the `plugins` directory, with a `plugin.js` and `README.md` file.
+This will create a new folder `your_plugin_name` inside the `plugins` directory, with the necessary javascript file.
 
-The `plugin.js` file is pre-populated with a template that includes inline documentation for all the available options. Please refer to this file for a detailed explanation of the plugin structure and available options.
+This file is pre-populated with a template that includes inline documentation for all the available options. Please refer to this file for a detailed explanation of the plugin structure and available options.
 
 ## Preparing a plugin for use
 To use a plugin, make sure that its main javascript file (not the entire folder) is moved to the root of the plugin location.
