@@ -20,14 +20,10 @@ The installer downloads the patched app.asar and installs it automatically. You 
 1. Download the [installer](https://raw.githubusercontent.com/bertigert/DeezMod/refs/heads/main/installer.bat)
 2. Follow instructions of the installer
 
-### Easy manual way (Should work for Linux/MacOS)
+### Manual (might work for other platforms, although not sure)
 1. Download the [app.asar](https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip)
 2. Replace `%localappdata%\Programs\deezer-desktop\resources\app.asar`
 3. Place plugins in your plugin folder
-
-### Full manual way
-1. Follow the [setup](https://github.com/bertigert/DeezMod/blob/main/docs/setup.md)
-2. Place plugins in your plugin folder
 
 ## Usage
 Place plugins inside of your plugin folder. Any .js file in the top level of that folder is treated as a plugin. Nested files are ignored (e.g. dependencies). They need to follow this [structure](https://github.com/bertigert/DeezMod/blob/main/docs/creating_plugins.md#plugin-structure).
