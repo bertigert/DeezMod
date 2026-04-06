@@ -21,7 +21,7 @@ The installer downloads the patched app.asar and installs it automatically. You 
 2. Follow instructions of the installer
 
 ### Manual (might work for other platforms, although not sure)
-1. Download the [app.asar](https://github.com/bertigert/DeezMod/releases/latest/download/app.asar.zip)
+1. Download the [app.asar](https://github.com/bertigert/DeezMod/releases/latest/download/app.asar)
 2. Replace `%localappdata%\Programs\deezer-desktop\resources\app.asar`
 3. Place plugins in your plugin folder
 
