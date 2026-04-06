@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bertigert/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.12",
+    version: "1.2.13",
     author: "bertigert",
     context: {
         renderer: "own"
@@ -1907,8 +1907,8 @@ module.exports = {
                 const [parent_div, main_btn] = create_main_btn(wrapper_div);
 
                 parent_div.append(wrapper_div);
-                parent.querySelectorAll("div.popper-wrapper.topbar-action").forEach(e => e.addEventListener("click", (e) => {wrapper_div.classList.add("hide")} ))
-                parent.insertBefore(parent_div, parent.querySelector("div.popper-wrapper.topbar-action"));
+                parent.querySelectorAll("button.popper-wrapper.topbar-action").forEach(e => e.addEventListener("click", (e) => {wrapper_div.classList.add("hide")} ))
+                parent.insertBefore(parent_div, parent.querySelector("button.popper-wrapper.topbar-action"));
 
                 log("Waiting for data");
                 await wait_for_new_releases_promise;
