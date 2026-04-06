@@ -1,7 +1,7 @@
 module.exports = {
     name: "Better Player",
     description: "QoL improvements for the Deezer player(bar)",
-    version: "1.0.3",
+    version: "1.0.4",
     author: "bertigert",
     context: {
         renderer: "own"
@@ -29,19 +29,20 @@ function main() {
             {
                 find: ["getStorageKey:e=>`ALERT_DISMISSED_${e}"],
                 replacements: [
-                    // remaining time
+                    // toggle between remaining time and elapsed time on click
                     {
                         match: /(_renderCurrentValue.*?)this._formatValue\(([a-z])\)(.*?"data-testid":"elapsed_time")/, //(.*?"data-testid":"remaining_time"},[a-z])/,
                         replace: (_, $1, $2, $3, $4) => `${$1}(${WebpackPatcher.ph.data}.altMode?"-":"")+this._formatValue(${WebpackPatcher.ph.data}.altMode?this.props.max-${$2}:${$2})${$3},onMouseUp:()=>${WebpackPatcher.ph.functions}.toggle()` //${$4}`+(${WebpackPatcher.placeholders.data}.altMode?" / "+this._formatValue(dzPlayer.getTrackListDuration()):"")`
                     },
-                    // better play previous
+                    // better play previous (seek to start if >5s in or in non-repeat-all first track)
+                    // this here enables the button on the first track to enable the seek-to-start functionality
                     {
-                        match: /(isDisabled:)![a-zA-Z]\|\|(!n.prev,onClick:\(\)=>{\$[a-zA-Z]\.[a-zA-Z]+\.control\.prevSong\(\)})/,
+                        match: /(isDisabled:)![a-zA-Z]+\|\|(![a-zA-Z]+\.prev,)/,
                         replace: (_, $1, $2) => `${$1}${$2}`
                     }
                 ]
             }
-        ]
+        ];
         data = {
             altMode: false,
         }
