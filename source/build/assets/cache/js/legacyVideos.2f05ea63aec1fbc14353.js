@@ -1,0 +1,1 @@
+"use strict";(self.webpackJsonpDeezer=self.webpackJsonpDeezer||[]).push([[9694],{zx1s(e,s,n){n.d(s,{loadLegacyVideoPlugins:()=>r});var t=n("Istr");function r(e){return(0,t.sH)(this,void 0,void 0,function(){var s;return(0,t.YH)(this,function(t){switch(t.label){case 0:return[4,n.e(572).then(n.t.bind(n,"bX72",23))];case 1:return s=t.sent(),e._plugins=s,[2]}})})}}}]);

@@ -30,10 +30,10 @@
         setup_plugin_commands(plugins, settings, globals)
     }
     var __webpack_modules__ = {
-            857: module => {
+            857(module) {
                 module.exports = require("os")
             },
-            944: module => {
+            944(module) {
                 module.exports = require("macos-version")
             }
         },
@@ -950,7 +950,9 @@
                 label: "Toggle Developper tools",
                 accelerator: isPlatform(PLATFORM.DARWIN) ? "Cmd+Option+I" : "Ctrl+Shift+I",
                 click: () => {
-                    external_electron_namespaceObject.BrowserWindow.getFocusedWindow().getBrowserView() ? external_electron_namespaceObject.BrowserWindow.getFocusedWindow().getBrowserView().webContents.toggleDevTools() : external_electron_namespaceObject.BrowserWindow.getFocusedWindow().webContents.toggleDevTools()
+                    const focusedWindow = external_electron_namespaceObject.BrowserWindow.getFocusedWindow(),
+                        browserView = focusedWindow.getBrowserView();
+                    browserView ? browserView.webContents.toggleDevTools() : focusedWindow.webContents.toggleDevTools()
                 }
             }
         }
@@ -1839,10 +1841,10 @@
                     } = details;
                     const CUSTOM_COOKIE_KEY = "X-DeezMod-Custom-Cookie-Safe-abcdef";
                     if (requestHeaders[CUSTOM_COOKIE_KEY]) {
-                        requestHeaders['Cookie'] = (requestHeaders['Cookie'] ? requestHeaders['Cookie'] + '; ' : '') + requestHeaders[CUSTOM_COOKIE_KEY];
-                        delete requestHeaders[CUSTOM_COOKIE_KEY];
-                    }     
-                    isValidDetailsForHeaderManipulation(details) && (requestHeaders.origin = `https://${this.domain}`), requestHeaders["user-agent"] = this.appService.getWebContents().getUserAgent(),callback({
+                        requestHeaders["Cookie"] = (requestHeaders["Cookie"] ? requestHeaders["Cookie"] + "; " : "") + requestHeaders[CUSTOM_COOKIE_KEY];
+                        delete requestHeaders[CUSTOM_COOKIE_KEY]
+                    }
+                    isValidDetailsForHeaderManipulation(details) && (requestHeaders.origin = `https://${this.domain}`), requestHeaders["user-agent"] = this.appService.getWebContents().getUserAgent(), callback({
                         cancel: !1,
                         requestHeaders: requestHeaders
                     })
@@ -1851,15 +1853,15 @@
                         responseHeaders,
                         statusLine
                     } = details;
-                    const cookie_header = Object.keys(responseHeaders).find(k => k.toLowerCase() === 'set-cookie');
+                    const cookie_header = Object.keys(responseHeaders).find(k => k.toLowerCase() === "set-cookie");
                     if (cookie_header) {
-                        responseHeaders[cookie_header] = responseHeaders[cookie_header].map((cookie) => {
-                            let base = cookie.replace(/;?\s*samesite=[^;]+/gi, "");            
+                        responseHeaders[cookie_header] = responseHeaders[cookie_header].map(cookie => {
+                            let base = cookie.replace(/;?\s*samesite=[^;]+/gi, "");
                             if (!/;\s*secure/i.test(base)) base += "; Secure";
-                            return `${base}; SameSite=None`;
-                        });
+                            return `${base}; SameSite=None`
+                        })
                     }
-                    isValidDetailsForHeaderManipulation(details) && (cleanupHeaders(responseHeaders, "access-control-allow-origin"), responseHeaders["access-control-allow-origin"] = ["file://"], cleanupHeaders(responseHeaders, "access-control-allow-headers"), responseHeaders["access-control-allow-headers"] = ["x-deezer-user", "x-ignore-service-worker", "authorization", "content-type", "range"]),callback({
+                    isValidDetailsForHeaderManipulation(details) && (cleanupHeaders(responseHeaders, "access-control-allow-origin"), responseHeaders["access-control-allow-origin"] = ["file://"], cleanupHeaders(responseHeaders, "access-control-allow-headers"), responseHeaders["access-control-allow-headers"] = ["x-deezer-user", "x-ignore-service-worker", "authorization", "content-type", "range"]), callback({
                         cancel: !1,
                         responseHeaders: responseHeaders,
                         statusLine: statusLine
@@ -1940,7 +1942,9 @@
             if (this.appService.setUserAgent(), isPlatform(PLATFORM.DARWIN)) {
                 let isQuitting = !1;
                 external_electron_namespaceObject.app.on("before-quit", () => isQuitting = !0), this.window.on("close", event => {
-                    isQuitting || this.updater.isUpdating || (event.preventDefault(), this.window.hide())
+                    isQuitting || this.updater.isUpdating || (event.preventDefault(), this.window.isFullScreen() ? (this.window.once("leave-full-screen", () => {
+                        this.window.hide()
+                    }), this.window.setFullScreen(!1)) : this.window.hide())
                 }), this.window.on("moved", () => {
                     this.windowState.save()
                 })

@@ -1,1 +1,1 @@
-importScripts('./assets/cache/js/service-worker.19acaf27b4a000000000.js');
+importScripts('./assets/cache/js/service-worker.19d3dca718f000000000.js');

@@ -14,10 +14,10 @@
         }
     })().then(() => {
         var __webpack_modules__ = {
-                857: module => {
+                857(module) {
                     module.exports = require("os")
                 },
-                944: module => {
+                944(module) {
                     module.exports = require("macos-version")
                 }
             },
