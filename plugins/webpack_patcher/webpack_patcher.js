@@ -1,16 +1,16 @@
 module.exports = {
     name: "Webpack Patcher",
     description: "Library script to patch the code of webpack modules at runtime. Exposes a global register_webpack_patches function.",
-    version: "2.0.3",
+    version: "2.0.4",
     author: "bertigert",
     context: {
         renderer: "own"
     },
     func: () => {
         "use strict";
-        
+
         // JSDoc was overhauled by AI
-        
+
         class Logger {
             constructor(prefix, log_level = "log") {
                 this.prefix = prefix;
@@ -23,27 +23,27 @@ module.exports = {
                 this.current_level = this.log_levels[log_level] == null ? this.log_levels.log : this.log_levels[log_level];
             }
 
-            debug(...args) { 
+            debug(...args) {
                 if (this.current_level <= this.log_levels.debug) {
-                    console.debug(this.prefix, ...args); 
+                    console.debug(this.prefix, ...args);
                 }
             }
-            
-            log(...args) { 
+
+            log(...args) {
                 if (this.current_level <= this.log_levels.log) {
-                    console.log(this.prefix, ...args); 
+                    console.log(this.prefix, ...args);
                 }
             }
-            
-            warn(...args) { 
+
+            warn(...args) {
                 if (this.current_level <= this.log_levels.warn) {
-                    console.warn(this.prefix, ...args); 
+                    console.warn(this.prefix, ...args);
                 }
             }
-            
-            error(...args) { 
+
+            error(...args) {
                 if (this.current_level <= this.log_levels.error) {
-                    console.error(this.prefix, ...args); 
+                    console.error(this.prefix, ...args);
                 }
             }
         }
@@ -54,7 +54,7 @@ module.exports = {
          */
         class WebpackPatcher {
             static VERSION = "2.0.0";
-            
+
             static SYM_PROXY_INNER_GET = Symbol("WebpackPatcher.proxyInnerGet");
             static SYM_PROXY_INNER_VALUE = Symbol("WebpackPatcher.proxyInnerValue");
             static SYM_ORIGINAL_FACTORY = Symbol("WebpackPatcher.originalFactory");
@@ -77,17 +77,17 @@ module.exports = {
                 this.webpack_cache = null;
                 this.hooked = false;
                 this.logger = logger || window.console;
-                
+
                 // default options
                 this.cache_enabled = options.enable_cache !== undefined ? options.enable_cache : false;
                 this.use_eval = options.use_eval !== undefined ? options.use_eval : true;
                 this.on_detect = options.on_detect || null;
                 this.filter_func = options.filter_func || null;
                 this.webpack_property_names = options.webpack_property_names || { modules: "m", cache: "c" };
-                
+
                 this.factory_string_cache = this.cache_enabled ? new Map() : null;
                 this.registrars = {}; // Store registrar objects by name
-                
+
                 this.placeholder_id = Math.random().toString(36).substring(2, 10); // just to make sure it's unique enough
                 this.placeholders = Object.freeze({
                     self: `WEBPACKPATCHER_PLACEHOLDER_SELF_${this.placeholder_id}`,
@@ -192,7 +192,7 @@ module.exports = {
              */
             register_patches(options, patches, existing_registrar = null) {
                 const registrar_name = options.name;
-                
+
                 if (!registrar_name) {
                     throw new Error("Registrar name is required");
                 }
@@ -202,21 +202,21 @@ module.exports = {
                         data: options.data || {},
                         functions: options.functions || {}
                     };
-                    
+
                     Object.defineProperty(window.WebpackPatcher.Registrars, registrar_name, {
                         value: registrar_obj,
                         writable: false,
                         enumerable: true,
                         configurable: false
                     });
-                    
+
                     this.registrars[registrar_name] = registrar_obj;
-                    
+
                     this.logger.debug(`Created new registrar: ${registrar_name}`);
                 }
 
                 this.patches.push(...patches.map(p => ({ ...p, _registrar_name: registrar_name })));
-                
+
                 this.logger.debug(`Registered ${patches.length} patch(es) for ${registrar_name}, total patches: ${this.patches.length}`);
 
                 if (!this.hooked) {
@@ -246,7 +246,7 @@ module.exports = {
                             writable: true,
                             configurable: true
                         });
-                        
+
                         if (cache_detected) {
                             self.logger.debug("Cache already detected, skipping duplicate initialization");
                             return;
@@ -322,7 +322,7 @@ module.exports = {
                                 // Track registration count
                                 // const count = (self.module_registration_count.get(module_id) || 0) + 1;
                                 // self.module_registration_count.set(module_id, count);
-                                
+
                                 // if (count > 1) {
                                 //     self.logger.warn(`Module ${module_id} registered ${count} times (possible HMR or duplicate registration)`);
                                 // }
@@ -331,28 +331,28 @@ module.exports = {
 
                                 // intercept execution using helper
                                 const factory_proxy = self._create_factory_proxy(module_id, factory);
-                                
+
                                 target[module_id] = factory_proxy;
                                 return true;
                             },
-                            
+
 
                             get(target, prop, receiver) {
                                 const value = Reflect.get(target, prop, receiver);
-                                
+
 
                                 // if the value is a proxied factory, return the inner value for direct access
                                 if (value?.[WebpackPatcher.SYM_PROXY_INNER_GET]) {
                                     return value[WebpackPatcher.SYM_PROXY_INNER_VALUE];
                                 }
-                                
+
 
                                 return value;
                             }
                         });
 
                         self.module_factories = module_factories;
-                        
+
                         original_define_property(this, self.webpack_property_names.modules, {
                             value: proxied_factories,
                             writable: true,
@@ -366,7 +366,7 @@ module.exports = {
                             const factory_proxy = self._create_factory_proxy(module_id, factory);
                             module_factories[module_id] = factory_proxy;
                         }
-                        
+
                         self.logger.debug(`Wrapped ${module_count} pre-existing modules in factory proxies`);
                     }
                 });
@@ -386,13 +386,13 @@ module.exports = {
                     this.logger.debug(`Using cached factory string for module ${module_id} (cache hit)`);
                     return this.factory_string_cache.get(module_id);
                 }
-                
+
                 const factory_str = factory.toString();
-                
+
                 if (this.cache_enabled) {
                     this.factory_string_cache.set(module_id, factory_str);
                 }
-                
+
                 return factory_str;
             }
 
@@ -405,7 +405,7 @@ module.exports = {
             _check_pattern_match(factory_str, patch) {
                 const { find } = patch;
                 const finds = Array.isArray(find) ? find : [find];
-                
+
                 return finds.some(pattern => this._matches_identifier(factory_str, pattern));
             }
 
@@ -419,7 +419,7 @@ module.exports = {
                 if (factory[WebpackPatcher.SYM_ORIGINAL_FACTORY] != null) {
                     return factory;
                 }
-                
+
                 if (this.patched_modules.has(module_id)) {
                     return factory;
                 }
@@ -428,33 +428,33 @@ module.exports = {
                 let current_factory = factory;
                 let current_factory_str = factory_str;
                 let any_patches_applied = false;
-                
+
                 for (let i = 0; i < this.patches.length; i++) {
                     const patch = this.patches[i];
-                    
+
                     if (!this._check_pattern_match(current_factory_str, patch)) {
                         continue;
                     }
 
                     // this.logger.debug(`Module ${module_id} matches patch ${i + 1}/${this.patches.length}`);
-                    
+
                     const patch_result = this._apply_patch(current_factory, current_factory_str, patch.replacements, module_id, patch._registrar_name);
-                    
+
                     if (patch_result.patched) {
                         current_factory = patch_result.factory;
                         current_factory_str = patch_result.factory_str;
                         any_patches_applied = true;
-                        
+
                         // this.logger.debug(`Applied patch ${i + 1} to module ${module_id}`);
                     }
                 }
-                
+
                 if (any_patches_applied) {
                     current_factory[WebpackPatcher.SYM_ORIGINAL_FACTORY] = factory;
                     this.module_factories[module_id] = current_factory;
                     this._emit_event("module_patched", module_id, current_factory, factory);
                 }
-                
+
                 this.patched_modules.add(module_id);
                 return current_factory;
             }
@@ -470,12 +470,12 @@ module.exports = {
              */
             _apply_patch(factory, factory_str, matches_and_replacements, module_id, registrar_name) {
                 let patched_code;
-                
+
                 if (!Array.isArray(matches_and_replacements) || matches_and_replacements.length === 0) {
                     this.logger.warn(`Module was matched, but no replacements provided`);
                     return {
                         patched: false,
-                        factory, 
+                        factory,
                         factory_str
                     };
                 }
@@ -490,7 +490,7 @@ module.exports = {
 
                         const { match, replace, global } = match_and_replacement;
                         const func = global || (match instanceof RegExp && match.global) ? "replaceAll" : "replace";
-                        
+
                         if (typeof replace === "function") {
                             patched_code = patched_code[func](match, (...args) => {
                                 replacement_occurred = true;
@@ -506,12 +506,12 @@ module.exports = {
                         if (replacement_occurred) {
                             total_replacements++;
                         } else {
-                            this.logger.warn(`Replacement ${i + 1}/${matches_and_replacements.length} skipped (no match) for module ${module_id}`);
+                            this.logger.warn(`Replacement ${i + 1}/${matches_and_replacements.length} skipped (no match) for module ${module_id} for ${registrar_name}`);
                         }
                     }
 
                     if (total_replacements === 0) {
-                        this.logger.warn(`No replacements occurred in module ${module_id}, returning original factory`);
+                        this.logger.warn(`No replacements occurred in module ${module_id} for ${registrar_name}, returning original factory`);
                         return {
                             patched: false,
                             factory,
@@ -524,20 +524,37 @@ module.exports = {
                         patched_code = patched_code.replaceAll(placeholder, replacement);
                     }
 
-                    // add source map
-                    const patched_source = `// Webpack Module ${module_id} - Patched by WebpackPatcher\n0,${patched_code}\n//# sourceURL=WebpackModule${module_id}`;
-                    
-                    const patched_factory = this.use_eval 
-                        ? (0, eval)(patched_source)
-                        : new Function(`return (${patched_code})`)();
-                    
+                    let patched_factory;
+                    try {
+                        // modern webpack versions use shorthands like "Ic++"(e, t, i) { ... } which can't be directly evaluated,
+                        // so we wrap it in an object and extract the function from the object to make it evaluable
+                        const evaluable_object = `Object.values({ ${patched_code} })[0]`;
+                        const source = `// Webpack Module ${module_id} - Patched by WebpackPatcher\n0,${evaluable_object}\n//# sourceURL=WebpackModule${module_id}`;
+
+                        patched_factory = this.use_eval
+                            ? (0, eval)(source)
+                            : new Function(`return (${evaluable_object})`)();
+
+                    } catch (error) {
+                        if (error instanceof SyntaxError) {
+                            // fallback for older webpack versions that don't use shorthands and can be evaluated directly
+                            const source = `// Webpack Module ${module_id} - Patched by WebpackPatcher\n0,${patched_code}\n//# sourceURL=WebpackModule${module_id}`;
+
+                            patched_factory = this.use_eval
+                                ? (0, eval)(source)
+                                : new Function(`return (${patched_code})`)();
+                        } else {
+                            throw error;
+                        }
+                    }
+
                     return {
                         patched: true,
-                        factory: patched_factory, 
-                        factory_str: patched_code 
+                        factory: patched_factory,
+                        factory_str: patched_code
                     };
                 } catch (e) {
-                    this.logger.error(`Replacement based patching failed:`, e, "patched code:", patched_code);
+                    this.logger.error(`Replacement based patching failed for ${registrar_name}:`, e, "patched code:", patched_code, "original factory string:", factory_str);
                     return {
                         patched: false,
                         factory,
@@ -571,7 +588,7 @@ module.exports = {
                     this.logger.warn("Cache is disabled, nothing to clear");
                     return;
                 }
-                
+
                 if (module_id) {
                     this.factory_string_cache.delete(module_id);
                 } else {
@@ -593,7 +610,7 @@ module.exports = {
                         const patched_factory = self._get_or_patch_factory(module_id, factory_target);
                         return patched_factory.apply(thisArg, argArray);
                     },
-                    
+
                     get(factory_target, prop, receiver) {
                         return self._handle_factory_get(factory_target, prop, receiver);
                     }
@@ -615,14 +632,14 @@ module.exports = {
                 if (prop === WebpackPatcher.SYM_PROXY_INNER_VALUE) {
                     return factory_target;
                 }
-                
+
                 const actual_factory = factory_target[WebpackPatcher.SYM_ORIGINAL_FACTORY] || factory_target;
-                
+
                 // ensure toString has correct `this` context
                 if (prop === "toString") {
                     return actual_factory.toString.bind(actual_factory);
                 }
-                
+
                 return Reflect.get(actual_factory, prop, receiver);
             }
         }
@@ -651,7 +668,7 @@ module.exports = {
                     patcher.logger.warn("Patcher already set, ignoring duplicate initialization");
                     return;
                 }
-                
+
                 this.patcher = patcher;
                 this._flush_buffers();
             }
@@ -664,44 +681,44 @@ module.exports = {
                 if (this.is_flushing) {
                     return;
                 }
-                
+
                 this.is_flushing = true;
-                
+
                 if (this.patch_buffer.length > 0) {
                     this.patcher.logger.log(`Flushing ${this.patch_buffer.length} buffered patch(es) to patcher`);
-                    
+
                     for (const buffered of this.patch_buffer) {
                         this.patcher.register_patches(buffered.options, buffered.patches, buffered.registrar);
                     }
-                    
+
                     this.patch_buffer = [];
                     this.patcher.logger.debug("Patch buffer flushed successfully");
                 }
-                
+
                 if (this.event_listener_buffer.length > 0) {
                     this.patcher.logger.log(`Flushing ${this.event_listener_buffer.length} buffered event listener(s) to patcher`);
-                    
+
                     for (const buffered of this.event_listener_buffer) {
                         this.patcher.add_event_listener(buffered.event, buffered.callback);
                     }
-                    
+
                     this.event_listener_buffer = [];
                     this.patcher.logger.debug("Event listener buffer flushed successfully");
                 }
-                
+
                 this.is_flushing = false;
             }
 
             /**
              * Register patches with the following structure:
-             * 
+             *
              * @param {Object} options - Registration options
              * @param {string} options.name - Name of the registrar (creates/gets object at WebpackPatcher.Registrars[name])
              * @param {Object} [options.data] - Initial data object for the registrar
              * @param {Object} [options.functions] - Initial functions object for the registrar
              * @param {Array<Object>} patches - Array of patch configurations
              * @returns {Object} Registrar object with {data: {}, functions: {}} for user to populate
-             * 
+             *
              * @example
              * WebpackPatcher.register_patches(
              *   {
@@ -711,7 +728,7 @@ module.exports = {
              *   },
              *   [
              *       {
-             *           find: string | RegExp | Array<string|RegExp>, // substring or regex to match in module code
+             *           find: string | RegExp | Array<string|RegExp>, // substring or regex to match in module code (array is a big OR)
              *           replacements: [
              *               {
              *                   match: string | RegExp, // substring or regex to match
@@ -732,14 +749,14 @@ module.exports = {
                         data: options.data || {},
                         functions: options.functions || {}
                     };
-                    
-                    this.patch_buffer.push({ 
-                        options, 
-                        patches, 
+
+                    this.patch_buffer.push({
+                        options,
+                        patches,
                         registrar: registrar_obj
                     });
                     console.debug("[WebpackPatcher]", `Buffered ${patches.length} patch(es) for "${options.name}" (patcher not yet initialized)`);
-                    
+
                     return registrar_obj;
                 }
             }
@@ -748,22 +765,22 @@ module.exports = {
              * Add an event listener for webpack events
              * @param {string} event - Event name: "webpack_detected", "module_registered", "module_patched"
              * @param {Function} callback - Callback function
-             * 
+             *
              * Events:
              * - webpack_detected: (webpack_require, module_factories) => void
              * - module_registered: (module_id, factory) => void
              * - module_patched: (module_id, patched_factory, original_factory) => void
-             * 
+             *
              * @example
              * WebpackPatcher.addEventListener("webpack_detected", (wreq, factories) => {
              *     console.log("Webpack detected!", wreq);
              * });
-             * 
+             *
              * @example
              * WebpackPatcher.addEventListener("module_registered", (module_id, factory) => {
              *     console.log("Module registered:", module_id);
              * });
-             * 
+             *
              * @example
              * WebpackPatcher.addEventListener("module_patched", (module_id, patched, original) => {
              *     console.log("Module patched:", module_id);
@@ -861,7 +878,7 @@ module.exports = {
                             register: Object.freeze(webpack_patch_registrar.register_patches.bind(webpack_patch_registrar)),
                             addEventListener: Object.freeze(webpack_patch_registrar.add_event_listener.bind(webpack_patch_registrar)),
                             removeEventListener: Object.freeze(webpack_patch_registrar.remove_event_listener.bind(webpack_patch_registrar)),
-                            
+
                             Registrars: {},
 
                             get webpackRequire() {
@@ -900,7 +917,7 @@ module.exports = {
                 logger.log(`Using configuration for ${location.hostname}`);
                 const patcher = WebpackPatcher.initialize(logger, matching_configuration.options || {});
                 webpack_patch_registrar.set_patcher(patcher);
-            }   
+            }
         }
 
         const CONFIGURATIONS = [
@@ -909,7 +926,7 @@ module.exports = {
                 options: {
                     filter_func: (ctx, stack_lines) => {
                         return /\/cache\/js\/runtime\..*?\.js(?::[0-9]+:[0-9]+)?$/.test(stack_lines[stack_lines.length-1]);
-                    },
+                    }
                 },
             },
             {
