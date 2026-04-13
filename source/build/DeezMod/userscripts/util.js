@@ -43,5 +43,6 @@ module.exports = {
     get_random_id: get_random_id,
     data_to_data_url: data_to_data_url,
     data_to_blob_url: data_to_blob_url,
-    register_ipc_dispatcher: register_ipc_dispatcher
+    register_ipc_dispatcher: register_ipc_dispatcher,
+    split_with_limit: split_with_limit,
 };
