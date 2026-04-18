@@ -1,103 +1,29 @@
-# Create plugins
-Creating plugins is not streamlined at all. This injection method is more a way to port userscripts designed for the browser to the desktop application. Some things need to be changed for that.
+# How do plugins work?
 
-## Plugin location
+Plugins are injected userscripts. They are primarily designed for use in a browser, but get ported to the desktop application.
+
+## Creating a new plugin
+
+To create a new plugin, run the following command from the root of the DeezMod project:
+
+```bash
+node create_plugin.js your_plugin_name
+```
+
+This will create a new folder `your_plugin_name` inside the `plugins` directory, with the necessary javascript file.
+
+This file is pre-populated with a template that includes inline documentation for all the available options. Please refer to this file for a detailed explanation of the plugin structure and available options.
+
+## Preparing a plugin for use
+To use a plugin, make sure that its main javascript file (not the entire folder) is moved to the root of the plugin location.
+
+### Plugin location
 - Windows: `%localappdata%\DeezMod\Data\plugins`
 - macOS: `~/Library/Application Support/DeezMod/plugins`
 - Linux: `~/.local/share/DeezMod/plugins`
 
-## Plugin structure
-A plugin has the following structure
-
-`plugin.js`
-```js
-module.exports = {
-    name: string,
-    description: string,
-    version: string,
-    author: string,
-    context: obj<str, str>,
-    require: array<obj> | str,
-    resources: array<object> | str,
-    grant: array<str>,
-    func: function(context: string)
-}
-```
-
-`name` string - name of The Plugin. Must be unique. If two plugins have the same name, one gets blocked from loading.
-
-`description` string - description of the plugin. Not used.
-
-`version` string - Version of the plugin. Not used.
-
-`author` string - author of the plugin. Not used.
-
-`context` object - An object of contexts in which and what scope the script should be executed in. The object can look like this:
-```js
-{
-    "main": "loader",
-    "rendererPreload": "own",
-}
-```
-where the keys are the contexts and the values are the scopes.
-#### Possible Contexts
-- `"main"` - Influence the startup behaviour of the application. The userscript compatibility layer is disabled in this context.
-- `"rendererPreload"` - Influence both the startup and the runtime behaviour of the application. Is a middleman between main and renderer in some cases (altough specifically for Deezer not really). Shares the same process as renderer.
-- `"titlebarPreload` - Same as "rendererPreload", but for the titlebar process.
-- `"renderer"` - Influence the UI and runtime behaviour of the application. Most userscript ports need the renderer context.
-- `"titlebar"` - Influence the behaviour/UI of the title bar. It runs in its own window so communication between the titlebar and other context can be difficult.
-- `"preload"` - deprecated
-#### Possible Scopes
-- `"own"` - The default. Plugins don't have access to local variables inside of the scopes js files.
-- `"loader"` - Plugins have access to local variables and can change data inside the js files. Only useful in very specific use cases. The userscript compatibility layer is disabled in this scope.
-
-> Order of execution is usually like this:\
-`main -> preloadRenderer/preloadTitlebar -> renderer`
-
-`require` - Require js files before executing the plugin. Behaves the same as userscripts @require.\
-Example:
-```js
-require: [{
-     // URL of the js file
-    url: "https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js",
-    // Hash of the js file
-    hash: "be35f7bc7d621235ea29fdca791763e3fb8002edf3bbfa7bda273df4232b0925",
-    // Algorithm used for hashing the file
-    alg: "sha256",
-    // The context in which the file should be required in. Defaults to every context the plugin is executed in if not used.
-    context: ["renderer"]
-}]
-```
-
-`resources` - Part of the userscript compatibility layer. Download resources before execution/cache at first execution. Behaves the same as userscripts @resources.\
-Example:
-```js
-resources: [
-    {
-        // Name of the resouce, as used in GM_getResource
-        name: "test-img",
-        url: "https://cdn-images.dzcdn.net/images/cover/43f7248048dd0fedec519a4be28d5caf/56x56-000000-80-0-0.jpg",
-        hash: "788e78433bfa8081860ace042beed0119e7f615156b91a2c2edf324700b446f9",
-        alg: "sha256",
-        // The context in which the resource should be made available in.
-        context: ["renderer"]
-    },
-]
-```
-
-`grant` - Part of the userscript compatibility layer. Grants special userscript features and enables sandboxing. Behaves the same as userscripts @grant.\
-Example:
-```js
-grant: [
-    "GM_getResourceURL",
-    "GM_getResourceText",
-    "unsafeWindow",
-]
-```
-
-`func` function - The function in which the logic of the userscript is.
-- #### Arguments
-    - `context` string - The context in which the script got executed in, useful for when you need to execute the script in multiple contexts.
+### Quickly access your plugins folder
+Open the program up. Check the navbar's options -> DeezMod -> "Open Plugins".
 
 ## Userscript Compatibility Layer
 DeezMod includes a compatibility layer for userscripts. This means you can port almost every userscript over and it should work the same as in the Web. It was mostly based on Violentmonkey 2.31.0 and a bit of Tampermonkey.
